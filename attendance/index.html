@@ -171,7 +171,7 @@ td.d{white-space:nowrap}
 /* PDF stage: always the light palette, fixed A4-ish width */
 .pdf-stage{position:fixed;left:-10000px;top:0;width:760px;padding:24px;background:#ffffff;font-family:var(--f-ui);letter-spacing:0;line-height:1.6;
   --surface:#ffffff;--sunk:#f4f6f9;--ink:#1b2340;--muted:#5d6680;--line:#d5dae5;--lapis:#1f3a7a;--lapis-soft:#e3e9f6;--gold:#a8812a;--gold-soft:#f3ead2;
-  --ok:#2f7d4f;--ok-soft:#e1f1e7;--bad:#b0383a;--bad-soft:#f8e1e1;--late:#a8701c;--late-soft:#f8ecd6;--none-soft:#eef0f4;color:#1b2340}
+  --ok:#2f7d4f;--ok-soft:#e1f1e7;--bad:#b0383a;--bad-soft:#f8e1e1;--late:#a8701c;--late-soft:#f8ecd6;--none-soft:#eef0f4;--lapis-soft:#e3e9f6;color:#1b2340}
 .pdf-stage .rep{font-size:15px}
 .pdf-stage .tablewrap{overflow:visible}
 
@@ -285,6 +285,19 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
 .rl.u{color:var(--muted)}
 .stat small{font-size:11px;color:var(--muted)}
 
+.pill.m{background:var(--lapis-soft);color:var(--lapis)}
+.mrow.m{border-color:var(--lapis);background:var(--lapis-soft)}
+.seg button[data-st="m"][aria-pressed="true"]{background:var(--lapis);border-color:var(--lapis);color:var(--on-strong)}
+.uhint.mk{color:var(--lapis);background:var(--surface)}
+.rl.m{color:var(--lapis)}
+.guestcard{border-style:dashed}
+.offer{background:var(--lapis-soft);border:1px solid var(--lapis);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.offer p{margin:0;font-size:14px}
+.list.pick{max-height:320px;overflow-y:auto}
+.list.pick .strow{padding:8px 12px}
+.mrow.guest .seg button:last-child{color:var(--bad)}
+@media (max-width:520px){.mrow .seg button{padding:7px 6px;font-size:13px}}
+
 .toast{position:fixed;inset-inline:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));margin:auto;max-width:360px;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:10px;text-align:center;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}
 .toast.on{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -362,6 +375,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
   let migrateFrom = null;
   function normSes(s) {
     s.marks = s.marks || {};
+    s.mk = s.mk || {};
     s.hw = s.hw || {};
     s.grades = s.grades || {};
     s.notes = s.notes || {};
@@ -377,6 +391,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     g.time = g.time || "";
     g.fee = typeof g.fee === "number" ? g.fee : null;
     g.joined = g.joined || {};
+    g.left = g.left || {};
     return g;
   }
   const thisMonth = () => today().slice(0, 7);
@@ -589,7 +604,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       else saveLocal();
     },
     group(g, del) {
-      if (mode === "cloud") put("groups/" + g.id, del ? null : { place: g.place, note: g.note, days: g.days, time: g.time, fee: g.fee, members: g.members, joined: g.joined, createdAt: g.createdAt || Date.now() });
+      if (mode === "cloud") put("groups/" + g.id, del ? null : { place: g.place, note: g.note, days: g.days, time: g.time, fee: g.fee, members: g.members, joined: g.joined, left: g.left, createdAt: g.createdAt || Date.now() });
       else saveLocal();
     },
     payment(p, del) {
@@ -601,7 +616,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       else saveLocal();
     },
     session(g, s, del) {
-      if (mode === "cloud") put("sessions/" + s.id, del ? null : { gid: g.id, date: s.date, title: s.title, marks: s.marks, hw: s.hw, grades: s.grades, notes: s.notes, max: s.max });
+      if (mode === "cloud") put("sessions/" + s.id, del ? null : { gid: g.id, date: s.date, title: s.title, marks: s.marks, hw: s.hw, grades: s.grades, notes: s.notes, mk: s.mk, max: s.max });
       else saveLocal();
     },
     all() {
@@ -709,6 +724,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     return ((_a = db.students[c]) == null ? void 0 : _a.name) || "طالب #" + c;
   };
   const normAr = (s) => String(s || "").toLowerCase().replace(/[ً-ْٰـ]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\s+/g, " ").trim();
+  const sortCodes = (arr) => [...arr].sort((a, b) => normAr(NAME(a)).localeCompare(normAr(NAME(b)), "ar") || a.localeCompare(b));
   const sortedMembers = (g) => [...g.members].sort((a, b) => normAr(NAME(a)).localeCompare(normAr(NAME(b)), "ar") || a.localeCompare(b));
   const qAttr = (c) => ' data-q="'.concat(esc(normAr(NAME(c) + " " + c)), '"');
   function searchBox(n) {
@@ -728,33 +744,46 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     $("qempty").hidden = shown > 0;
     $("qcount").textContent = q ? "".concat(ar(shown), " من ").concat(ar(items.length)) : "".concat(ar(items.length), " طالب");
   }
-  const S = { q: "", screen: "home", gid: null, sesId: null, code: null, from: "home", tab: "sessions", stab: "att", form: null, month: null, payFor: null };
+  const S = { guestPick: false, mkOffer: null, q: "", screen: "home", gid: null, sesId: null, code: null, from: "home", tab: "sessions", stab: "att", form: null, month: null, payFor: null };
   const G = () => db.groups.find((g) => g.id === S.gid);
   const SES = (g) => g && g.sessions.find((s) => s.id === S.sesId);
   const sorted = (g) => [...g.sessions].sort((a, b) => b.date.localeCompare(a.date));
-  const eligibleFor = (g, c, date) => g.members.includes(c) && !(g.joined[c] && g.joined[c] > date);
-  const eligible = (g, ses) => g.members.filter((c) => eligibleFor(g, c, ses.date));
+  function eligibleFor(g, c, date) {
+    const j = g.joined[c];
+    if (j && j > date) return false;
+    if (g.members.includes(c)) return true;
+    const l = g.left[c];
+    return !!(l && date < l);
+  }
+  const uniq = (a) => [...new Set(a)];
+  const eligible = (g, ses) => uniq([...g.members, ...Object.keys(g.left)]).filter((c) => eligibleFor(g, c, ses.date));
+  const isGuest = (g, ses, c) => !!ses.marks[c] && !g.members.includes(c) && !eligibleFor(g, c, ses.date);
+  const rosterFor = (g, ses) => sortCodes(uniq([...g.members, ...eligible(g, ses)]));
   function cnt(g, ses) {
-    let p = 0, l = 0, a = 0;
-    const el = eligible(g, ses);
-    el.forEach((c) => {
-      const v = ses.marks[c];
-      if (v === "p") p++;
-      else if (v === "l") l++;
-      else if (v === "a") a++;
-    });
+    const el = eligible(g, ses), o = { p: 0, l: 0, a: 0, m: 0, guest: 0 };
     Object.keys(ses.marks).forEach((c) => {
-      if (!el.includes(c)) {
-        const v = ses.marks[c];
-        if (v === "p") p++;
-        else if (v === "l") l++;
-        else if (v === "a") a++;
+      if (isGuest(g, ses, c)) {
+        o.guest++;
+        return;
       }
+      const v = ses.marks[c];
+      if (o[v] !== void 0) o[v]++;
     });
-    return { p, l, a, came: p + l, n: el.filter((c) => !ses.marks[c]).length, tot: Math.max(el.length, p + l + a) };
+    o.came = o.p + o.l;
+    o.n = el.filter((c) => !ses.marks[c]).length;
+    o.tot = Math.max(el.length, o.p + o.l + o.a + o.m);
+    return o;
+  }
+  const daysBetween = (a, b) => Math.round(Math.abs(D(a) - D(b)) / 864e5);
+  const gById = (id) => db.groups.find((x) => x.id === id);
+  function mkInfo(ses, c) {
+    const k = ses.mk[c];
+    if (!k) return null;
+    const hg = gById(k.gid), hs = hg && hg.sessions.find((x) => x.id === k.sid);
+    return hs ? { g: hg, s: hs } : null;
   }
   const UNMARKED = "لم يُحدَّد";
-  const ST_LABEL = { p: "حاضر", l: "متأخر", a: "غائب" };
+  const ST_LABEL = { p: "حاضر", l: "متأخر", a: "غائب", m: "تعويض" };
   const money = (n) => "".concat(ar(Math.round((n || 0) * 100) / 100), " ").concat(db.settings.cur);
   const monthLabel = (m) => (/* @__PURE__ */ new Date(m + "-15T12:00:00")).toLocaleDateString("ar-EG", { month: "long", year: "numeric" });
   const shiftMonth = (m, k) => {
@@ -762,7 +791,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     d.setMonth(d.getMonth() + k);
     return iso(d).slice(0, 7);
   };
-  const paysOf = (gid, code, month) => db.payments.filter((p) => p.gid === gid && p.code === code && (!month || p.month === month));
+  const paysOf = (gid, code, month) => db.payments.filter((p) => p.code === code && (!month || p.month === month));
   const paidOf = (gid, code, month) => paysOf(gid, code, month).reduce((a, p) => a + (Number(p.amount) || 0), 0);
   function payStatus(g, code, month) {
     const fee = g.fee || 0, paid = paidOf(g.id, code, month);
@@ -776,19 +805,21 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       paid += Math.min(s.paid, s.fee || s.paid);
       if (s.st === "due" || s.st === "part") unpaid++;
     });
-    const extra = db.payments.filter((p) => p.gid === g.id && p.month === month && !g.members.includes(p.code)).reduce((a, p) => a + (Number(p.amount) || 0), 0);
-    const collected = db.payments.filter((p) => p.gid === g.id && p.month === month).reduce((a, p) => a + (Number(p.amount) || 0), 0);
-    return { due, paid, collected, left: Math.max(0, due - paid), unpaid, extra };
+    const collected = g.members.reduce((a, c) => a + paidOf(g.id, c, month), 0);
+    return { due, paid, collected, left: Math.max(0, due - paid), unpaid };
   }
   function allMoney(month) {
     const t = { due: 0, collected: 0, left: 0, unpaid: 0 };
-    db.groups.forEach((g) => {
-      const m = groupMoney(g, month);
-      t.due += m.due;
-      t.collected += m.collected;
-      t.left += m.left;
-      t.unpaid += m.unpaid;
-    });
+    const seen = /* @__PURE__ */ new Set();
+    db.groups.forEach((g) => g.members.forEach((c) => {
+      if (seen.has(c)) return;
+      seen.add(c);
+      const s = payStatus(g, c, month);
+      t.due += s.fee;
+      t.left += s.left;
+      if (s.st === "due" || s.st === "part") t.unpaid++;
+    }));
+    t.collected = db.payments.filter((p) => p.month === month).reduce((a, p) => a + (Number(p.amount) || 0), 0);
     return t;
   }
   const PAY_LABEL = { paid: "دفع", part: "دفع جزء", due: "لم يدفع", nofee: "بدون اشتراك" };
@@ -807,23 +838,44 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     return { hwY: y, hwT: ids.length, avg: gs.length ? gs.reduce((a, b) => a + b, 0) / gs.length : null, gCount: gs.length };
   }
   function history(code, onlyGroup) {
-    const rows = [];
+    let rows = [];
     db.groups.forEach((g) => {
       if (onlyGroup && g !== onlyGroup) return;
       g.sessions.forEach((s) => {
         const v = s.marks[code];
-        if (v || s.hw[code] || typeof s.grades[code] === "number" || s.notes[code] || eligibleFor(g, code, s.date)) rows.push({ g, s, v: v || "", hw: s.hw[code] || "", gr: s.grades[code], note: s.notes[code] || "" });
+        if (v || s.hw[code] || typeof s.grades[code] === "number" || s.notes[code] || eligibleFor(g, code, s.date))
+          rows.push({ g, s, v: v || "", hw: s.hw[code] || "", gr: s.grades[code], note: s.notes[code] || "", guest: isGuest(g, s, code) });
       });
     });
+    if (!onlyGroup) {
+      const byKey = new Map(rows.filter((r) => r.guest).map((r) => [r.g.id + "|" + r.s.id, r]));
+      rows.forEach((r) => {
+        if (r.v !== "m") return;
+        const k = r.s.mk[code];
+        const gr_ = k && byKey.get(k.gid + "|" + k.sid);
+        if (gr_) {
+          r.at = gr_;
+          gr_.merged = true;
+          if (!r.hw) r.hw = gr_.hw;
+          if (typeof r.gr !== "number" && typeof gr_.gr === "number") {
+            r.gr = gr_.gr;
+            r.grMax = gr_.s.max;
+          }
+          if (!r.note) r.note = gr_.note;
+        }
+      });
+      rows = rows.filter((r) => !r.merged);
+    }
     rows.sort((a, b) => b.s.date.localeCompare(a.s.date));
-    const att = rows.filter((r) => r.v), late = att.filter((r) => r.v === "l").length, p = att.filter((r) => r.v === "p" || r.v === "l").length;
+    const att = rows.filter((r) => r.v), late = att.filter((r) => r.v === "l").length, mk = att.filter((r) => r.v === "m").length, p = att.filter((r) => r.v === "p" || r.v === "l" || r.v === "m").length;
     const hwr = rows.filter((r) => r.hw), hy = hwr.filter((r) => r.hw === "y").length;
-    const grs = rows.filter((r) => typeof r.gr === "number" && r.s.max > 0);
-    const gp = grs.length ? Math.round(grs.reduce((a, r) => a + r.gr / r.s.max, 0) / grs.length * 100) : null;
+    const grs = rows.filter((r) => typeof r.gr === "number" && (r.grMax || r.s.max) > 0);
+    const gp = grs.length ? Math.round(grs.reduce((a, r) => a + r.gr / (r.grMax || r.s.max), 0) / grs.length * 100) : null;
     return {
       rows,
       p,
       late,
+      mk,
       a: att.length - p,
       tot: att.length,
       un: rows.length - att.length,
@@ -1107,8 +1159,10 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       const gm = groupMoney(g, m);
       return '<tr><td><button class="link" data-act="finGroup" data-id="'.concat(g.id, '">').concat(esc(g.place), '</button></td><td class="d">').concat(g.fee ? money(g.fee) + " × " + ar(g.members.length) : "—", '</td><td class="d">').concat(money(gm.due), '</td><td class="d">').concat(money(gm.collected), '</td><td class="d ').concat(gm.left ? "warnc" : "", '">').concat(money(gm.left), "</td><td>").concat(ar(gm.unpaid), "</td></tr>");
     }).join(""), "\n    </tbody></table></div>") : '<p class="empty">لسه مفيش مجموعات.</p>', "</div>");
-    const owe = [];
+    const owe = [], seenO = /* @__PURE__ */ new Set();
     db.groups.forEach((g) => g.members.forEach((c) => {
+      if (seenO.has(c)) return;
+      seenO.add(c);
       const s = payStatus(g, c, m);
       if (s.st === "due" || s.st === "part") owe.push({ g, c, s });
     }));
@@ -1125,16 +1179,57 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     h += '<form class="card" data-form="cur"><div class="findrow"><label class="field">العملة اللي بتظهر في الحسابات<input type="text" name="cur" id="f-cur" value="'.concat(esc(db.settings.cur), '"></label><button class="btn" type="submit">حفظ</button></div></form>');
     return h;
   }
+  function mkCandidates(g, s, code) {
+    const out = [];
+    db.groups.forEach((h) => {
+      if (h === g) return;
+      h.sessions.forEach((x) => {
+        if (!eligibleFor(h, code, x.date)) return;
+        const v = x.marks[code];
+        if ((!v || v === "a") && daysBetween(x.date, s.date) <= 6) out.push({ g: h, s: x });
+      });
+    });
+    return out.sort((a, b) => daysBetween(a.s.date, s.date) - daysBetween(b.s.date, s.date));
+  }
+  function guestSection(g, s) {
+    const guests = sortCodes(Object.keys(s.marks).filter((c) => isGuest(g, s, c)));
+    let h = '<div class="card guestcard"><h3 class="ch3">طلاب تعويض من مجموعات تانية</h3>';
+    const off = S.mkOffer && S.mkOffer.sid === s.id ? S.mkOffer : null;
+    if (off) {
+      const hg = gById(off.hgid), hs = hg && hg.sessions.find((x) => x.id === off.hsid);
+      if (hs) h += '<div class="offer"><p>'.concat(esc(NAME(off.code)), " من مجموعة <b>").concat(esc(hg.place), "</b>. تعلّمه «حضر تعويض» في حصته الأصلية <b>").concat(esc(hs.title), "</b> (").concat(fmtShort(hs.date), ')؟</p>\n      <div class="row"><button class="btn primary" data-act="mkYes">أيوه، علّمه</button><button class="btn" data-act="mkNo">لأ</button></div></div>');
+      else if (off.none) h += '<div class="offer"><p>اتضاف '.concat(esc(NAME(off.code)), '. مفيش حصة متسجّلة لمجموعته الأصلية في نفس الأسبوع. لما تسجّلها، علّمه هناك «تعويض» وهتتربط بالحصة دي لوحدها.</p><div class="row"><button class="btn" data-act="mkNo">تمام</button></div></div>');
+    }
+    if (guests.length) {
+      h += '<ul class="list">'.concat(guests.map((c) => {
+        const v = s.marks[c], home2 = db.groups.filter((x) => x !== g && x.members.includes(c)).map((x) => x.place).join("، ");
+        return '<li class="mrow '.concat(v, ' guest"><span class="mname"><span class="nm" style="flex:none">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), "</span>").concat(home2 ? '<span class="uhint soft">من '.concat(esc(home2), "</span>") : "", '</span>\n        <div class="seg">').concat(["p", "l"].map((k) => '<button data-act="mark" data-st="'.concat(k, '" data-code="').concat(esc(c), '" aria-pressed="').concat(v === k, '">').concat(ST_LABEL[k], "</button>")).join(""), '<button data-act="guestDel" data-code="').concat(esc(c), '">شيله</button></div></li>');
+      }).join(""), "</ul>");
+    } else h += '<p class="hint" style="margin:0">لو طالب من مجموعة تانية جه يعوّض الحصة دي، ضيفه هنا. مش هيتحسب على المجموعة دي في الفلوس أو الغياب.</p>';
+    if (S.guestPick) {
+      const roster = new Set(rosterFor(g, s));
+      const cands = sortCodes(Object.keys(db.students).filter((c) => !roster.has(c) && !s.marks[c]));
+      h += '<div class="sbox"><input type="search" id="gq" placeholder="ابحث باسم الطالب أو الـ ID" autocomplete="off" aria-label="ابحث عن طالب تعويض"></div>\n      '.concat(cands.length ? '<ul class="list pick">'.concat(cands.map((c) => {
+        const home2 = db.groups.filter((x) => x.members.includes(c)).map((x) => x.place).join("، ");
+        return '<li data-gq="'.concat(esc(normAr(NAME(c) + " " + c)), '"><button class="strow" data-act="guestAdd" data-code="').concat(esc(c), '"><span class="nm">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), "</span>").concat(home2 ? '<span class="mini">'.concat(esc(home2), "</span>") : "", "</button></li>");
+      }).join(""), "</ul>") : '<p class="hint">مفيش طلاب تانيين مسجّلين.</p>', '\n      <div class="row"><button class="btn" data-act="guestPickClose">إلغاء</button></div>');
+    } else h += '<button class="btn block" data-act="guestPick">+ طالب من مجموعة تانية (تعويض)</button>';
+    return h + "</div>";
+  }
   function sessionScreen(g, s) {
     var _a;
     const c = cnt(g, s), st = sesStats(s);
     let h = '<div class="card shero">\n      <h2>'.concat(esc(s.title), '</h2>\n      <span class="gtime">').concat(fmtDate(s.date), '</span>\n      <span class="hint">').concat(esc(g.place), '</span>\n      <div class="stabs" role="tablist">\n        <button role="tab" data-act="stab" data-t="att" aria-selected="').concat(S.stab === "att", '">الحضور</button>\n        <button role="tab" data-act="stab" data-t="hw" aria-selected="').concat(S.stab === "hw", '">الواجب والدرجات</button>\n      </div>');
     if (S.stab === "att") {
-      h += '<div class="counts"><div class="cnt p"><b>'.concat(ar(c.p), '</b><span>حاضر</span></div><div class="cnt l"><b>').concat(ar(c.l), '</b><span>متأخر</span></div><div class="cnt a"><b>').concat(ar(c.a), '</b><span>غائب</span></div><div class="cnt n"><b>').concat(ar(c.n), "</b><span>").concat(UNMARKED, "</span></div></div>\n      ").concat(g.members.length ? '<div class="row"><button class="btn" data-act="allPresent">علّم الباقي حاضر</button></div>' : "", "</div>");
-      h += g.members.length ? "".concat(searchBox(g.members.length), '<ul class="list">').concat(sortedMembers(g).map((code, i) => {
-        const v = s.marks[code] || "";
-        return '<li class="mrow '.concat(v || (eligibleFor(g, code, s.date) ? "u" : ""), '"').concat(qAttr(code), '><span class="num">').concat(ar(i + 1), '</span><span class="mname"><span class="nm" style="flex:none">').concat(esc(NAME(code)), '</span><span class="idtag">#').concat(esc(code), "</span>").concat(v ? "" : eligibleFor(g, code, s.date) ? '<span class="uhint">'.concat(UNMARKED, "</span>") : '<span class="uhint soft">انضم بعد الحصة</span>', '</span>\n        <div class="seg">').concat(["p", "l", "a"].map((k) => '<button data-act="mark" data-st="'.concat(k, '" data-code="').concat(esc(code), '" aria-pressed="').concat(v === k, '">').concat(ST_LABEL[k], "</button>")).join(""), "</div></li>");
+      h += '<div class="counts"><div class="cnt p"><b>'.concat(ar(c.p), '</b><span>حاضر</span></div><div class="cnt l"><b>').concat(ar(c.l), '</b><span>متأخر</span></div><div class="cnt a"><b>').concat(ar(c.a), '</b><span>غائب</span></div><div class="cnt n"><b>').concat(ar(c.n), "</b><span>").concat(UNMARKED, "</span></div></div>\n      ").concat(c.m || c.guest ? '<p class="hint">'.concat(c.m ? "".concat(ar(c.m), " حضر تعويض في مجموعة تانية") : "").concat(c.m && c.guest ? " · " : "").concat(c.guest ? "".concat(ar(c.guest), " جاي تعويض من مجموعة تانية") : "", "</p>") : "", "\n      ").concat(g.members.length ? '<div class="row"><button class="btn" data-act="allPresent">علّم الباقي حاضر</button></div>' : "", "</div>");
+      const roster = rosterFor(g, s);
+      h += roster.length ? "".concat(searchBox(roster.length), '<ul class="list">').concat(roster.map((code, i) => {
+        const v = s.marks[code] || "", el = eligibleFor(g, code, s.date), mi = v === "m" ? mkInfo(s, code) : null;
+        const tag = v === "m" ? '<span class="uhint mk">'.concat(mi ? "حضر في ".concat(esc(mi.g.place), " · ").concat(fmtShort(mi.s.date)) : "حضر في مجموعة تانية", "</span>") : v ? "" : el ? '<span class="uhint">'.concat(UNMARKED, "</span>") : g.members.includes(code) ? '<span class="uhint soft">انضم بعد الحصة</span>' : "";
+        const moved = !g.members.includes(code) ? '<span class="uhint soft">اتنقل لمجموعة تانية</span>' : "";
+        return '<li class="mrow '.concat(v || (el ? "u" : ""), '"').concat(qAttr(code), '><span class="num">').concat(ar(i + 1), '</span><span class="mname"><span class="nm" style="flex:none">').concat(esc(NAME(code)), '</span><span class="idtag">#').concat(esc(code), "</span>").concat(tag).concat(moved, '</span>\n        <div class="seg">').concat(["p", "l", "a", "m"].map((k) => '<button data-act="mark" data-st="'.concat(k, '" data-code="').concat(esc(code), '" aria-pressed="').concat(v === k, '">').concat(ST_LABEL[k], "</button>")).join(""), "</div></li>");
       }).join(""), "</ul>") : '<div class="card"><p class="empty">مفيش طلاب في المجموعة. ارجع للمجموعة وأضفهم من تبويب «الطلاب».</p></div>';
+      h += guestSection(g, s);
     } else {
       h += '<div class="stats3"><div class="stat"><b>'.concat(ar(st.hwY), "/").concat(ar(st.hwT), '</b><span>حلّوا الواجب</span></div>\n        <div class="stat"><b>').concat(st.avg == null ? "—" : ar(st.avg), "</b><span>متوسط الاختبار").concat(s.max ? " من " + ar(s.max) : "", '</span></div>\n        <div class="stat"><b>').concat(ar(st.gCount), '</b><span>اتسجّلت درجته</span></div></div>\n      <div class="row"><label class="gr">درجة الاختبار من <input type="text" inputmode="decimal" class="maxin" id="s-max" value="').concat((_a = s.max) != null ? _a : "", '"></label><span class="mini">سيبها فاضية لو مفيش اختبار في الحصة دي</span></div>\n      <p class="hint">الدرجة والملاحظة بيتحفظوا أول ما تخرج من الخانة.</p></div>');
       h += g.members.length ? "".concat(searchBox(g.members.length), '<ul class="list">').concat(sortedMembers(g).map((code, i) => {
@@ -1153,15 +1248,24 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
   }
   function sessionReport(g, s) {
     const marked = Object.keys(s.marks).sort((a, b) => normAr(NAME(a)).localeCompare(normAr(NAME(b)), "ar")), st = sesStats(s);
-    const pres = marked.filter((c) => s.marks[c] === "p" || s.marks[c] === "l"), abs = marked.filter((c) => s.marks[c] === "a"), lateN = marked.filter((c) => s.marks[c] === "l").length;
+    const pres = marked.filter((c) => (s.marks[c] === "p" || s.marks[c] === "l") && !isGuest(g, s, c)), abs = marked.filter((c) => s.marks[c] === "a"), lateN = marked.filter((c) => s.marks[c] === "l").length;
     const lateTag = (c) => s.marks[c] === "l" ? ' <span class="pill l">متأخر</span>' : "";
-    const un = sortedMembers(g).filter((c) => eligibleFor(g, c, s.date) && !s.marks[c]), tot = cnt(g, s).tot;
-    const html = '<div class="rep">'.concat(repHead("تقرير حصة"), '\n    <dl class="kv"><dt>عنوان الحصة</dt><dd>').concat(esc(s.title), "</dd><dt>التاريخ</dt><dd>").concat(fmtDate(s.date), "</dd><dt>المجموعة</dt><dd>").concat(esc(g.place), " · ").concat(esc(schedText(g)), "</dd><dt>الحضور</dt><dd>").concat(ar(pres.length), " من ").concat(ar(tot), " طالب").concat(lateN ? " (منهم ".concat(ar(lateN), " متأخر)") : "", "</dd>").concat(un.length ? "<dt>".concat(UNMARKED, "</dt><dd>").concat(ar(un.length), " طالب</dd>") : "", "\n    ").concat(st.hwT ? "<dt>الواجب</dt><dd>حلّه ".concat(ar(st.hwY), " من ").concat(ar(st.hwT), " طالب</dd>") : "").concat(st.avg != null && s.max ? "<dt>متوسط الاختبار</dt><dd>".concat(ar(st.avg), " من ").concat(ar(s.max), "</dd>") : "", '</dl>\n    <div class="rsec"><div class="rl p">الطلاب الحاضرون (').concat(ar(pres.length), ")</div>").concat(pres.length ? '<ol class="rlist">'.concat(pres.map((c) => "<li>".concat(esc(NAME(c))).concat(lateTag(c), "</li>")).join(""), "</ol>") : '<p class="hint">لم يُسجَّل حضور.</p>', "</div>\n    ").concat(abs.length ? '<div class="rsec"><div class="rl a">الغائبون ('.concat(ar(abs.length), ')</div><ol class="rlist">').concat(abs.map((c) => "<li>".concat(esc(NAME(c)), "</li>")).join(""), "</ol></div>") : "", "\n    ").concat(un.length ? '<div class="rsec"><div class="rl u">'.concat(UNMARKED, " حضورهم (").concat(ar(un.length), ')</div><ol class="rlist">').concat(un.map((c) => "<li>".concat(esc(NAME(c)), "</li>")).join(""), "</ol></div>") : "", "\n    ").concat(repFoot(), "</div>");
+    const un = sortCodes(eligible(g, s)).filter((c) => !s.marks[c]), tot = cnt(g, s).tot;
+    const mks = marked.filter((c) => s.marks[c] === "m" && !isGuest(g, s, c)), guests = marked.filter((c) => isGuest(g, s, c));
+    const html = '<div class="rep">'.concat(repHead("تقرير حصة"), '\n    <dl class="kv"><dt>عنوان الحصة</dt><dd>').concat(esc(s.title), "</dd><dt>التاريخ</dt><dd>").concat(fmtDate(s.date), "</dd><dt>المجموعة</dt><dd>").concat(esc(g.place), " · ").concat(esc(schedText(g)), "</dd><dt>الحضور</dt><dd>").concat(ar(pres.length), " من ").concat(ar(tot), " طالب").concat(lateN ? " (منهم ".concat(ar(lateN), " متأخر)") : "", "</dd>").concat(un.length ? "<dt>".concat(UNMARKED, "</dt><dd>").concat(ar(un.length), " طالب</dd>") : "", "\n    ").concat(st.hwT ? "<dt>الواجب</dt><dd>حلّه ".concat(ar(st.hwY), " من ").concat(ar(st.hwT), " طالب</dd>") : "").concat(st.avg != null && s.max ? "<dt>متوسط الاختبار</dt><dd>".concat(ar(st.avg), " من ").concat(ar(s.max), "</dd>") : "", '</dl>\n    <div class="rsec"><div class="rl p">الطلاب الحاضرون (').concat(ar(pres.length), ")</div>").concat(pres.length ? '<ol class="rlist">'.concat(pres.map((c) => "<li>".concat(esc(NAME(c))).concat(lateTag(c), "</li>")).join(""), "</ol>") : '<p class="hint">لم يُسجَّل حضور.</p>', "</div>\n    ").concat(abs.length ? '<div class="rsec"><div class="rl a">الغائبون ('.concat(ar(abs.length), ')</div><ol class="rlist">').concat(abs.map((c) => "<li>".concat(esc(NAME(c)), "</li>")).join(""), "</ol></div>") : "", "\n    ").concat(mks.length ? '<div class="rsec"><div class="rl m">حضروا تعويض في مجموعة تانية ('.concat(ar(mks.length), ')</div><ol class="rlist">').concat(mks.map((c) => {
+      const mi = mkInfo(s, c);
+      return "<li>".concat(esc(NAME(c))).concat(mi ? ' <span class="mini">· '.concat(esc(mi.g.place), "</span>") : "", "</li>");
+    }).join(""), "</ol></div>") : "", "\n    ").concat(guests.length ? '<div class="rsec"><div class="rl m">جم تعويض من مجموعات تانية ('.concat(ar(guests.length), ')</div><ol class="rlist">').concat(guests.map((c) => "<li>".concat(esc(NAME(c)), "</li>")).join(""), "</ol></div>") : "", "\n    ").concat(un.length ? '<div class="rsec"><div class="rl u">'.concat(UNMARKED, " حضورهم (").concat(ar(un.length), ')</div><ol class="rlist">').concat(un.map((c) => "<li>".concat(esc(NAME(c)), "</li>")).join(""), "</ol></div>") : "", "\n    ").concat(repFoot(), "</div>");
     let m = "📘 *تقرير حصة اللغة العربية*\n".concat(TEACHER, "\n\n📌 الحصة: ").concat(s.title, "\n📅 ").concat(fmtDate(s.date), "\n📍 ").concat(g.place, "\n");
     if (st.hwT) m += "📝 الواجب: حلّه ".concat(ar(st.hwY), " من ").concat(ar(st.hwT), "\n");
     if (st.avg != null && s.max) m += "📊 متوسط الاختبار: ".concat(ar(st.avg), " من ").concat(ar(s.max), "\n");
     m += "\n✅ *الحاضرون (".concat(ar(pres.length), " من ").concat(ar(tot), "):*\n") + (pres.length ? pres.map((c, i) => "".concat(ar(i + 1), ". ").concat(NAME(c)).concat(s.marks[c] === "l" ? " ⏰ (متأخر)" : "")).join("\n") : "—");
     if (abs.length) m += "\n\n❌ *الغائبون (".concat(ar(abs.length), "):*\n") + abs.map((c, i) => "".concat(ar(i + 1), ". ").concat(NAME(c))).join("\n");
+    if (mks.length) m += "\n\n🔁 *حضروا تعويض في مجموعة تانية (".concat(ar(mks.length), "):*\n") + mks.map((c, i) => {
+      const mi = mkInfo(s, c);
+      return "".concat(ar(i + 1), ". ").concat(NAME(c)).concat(mi ? " (".concat(mi.g.place, ")") : "");
+    }).join("\n");
+    if (guests.length) m += "\n\n🔁 *جم تعويض من مجموعات تانية (".concat(ar(guests.length), "):*\n") + guests.map((c, i) => "".concat(ar(i + 1), ". ").concat(NAME(c))).join("\n");
     if (un.length) m += "\n\n▫️ *".concat(UNMARKED, " حضورهم (").concat(ar(un.length), "):*\n") + un.map((c, i) => "".concat(ar(i + 1), ". ").concat(NAME(c))).join("\n");
     m += "\n\nللتواصل: ".concat(TPHONE);
     cur = { html, text: m, file: safeName("تقرير حصة - ".concat(s.title, " - ").concat(s.date)) + ".pdf" };
@@ -1174,9 +1278,9 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       if (g2.members.includes(code) && !groups.includes(g2)) groups.push(g2);
     });
     const multi = groups.length > 1, hasHw = h0.hwT > 0, hasGr = h0.gCount > 0, hasNote = h0.rows.some((r) => r.note);
-    const stLabel = (v) => v ? '<span class="pill '.concat(v, '">').concat(ST_LABEL[v], "</span>") : '<span class="pill u">'.concat(UNMARKED, "</span>");
+    const stLabel = (r) => r.v === "m" ? '<span class="pill m">تعويض</span>'.concat(r.at ? '<br><span class="mini">في '.concat(esc(r.at.g.place), " · ").concat(fmtShort(r.at.s.date), "</span>") : "") : r.v ? '<span class="pill '.concat(r.v, '">').concat(ST_LABEL[r.v], "</span>").concat(r.guest ? '<br><span class="mini">تعويض</span>' : "") : '<span class="pill u">'.concat(UNMARKED, "</span>");
     const hwLabel = (v) => v === "y" ? '<span class="pill p">حلّه</span>' : v === "n" ? '<span class="pill a">لم يحل</span>' : "—";
-    const html = '<div class="rep">'.concat(repHead("تقرير طالب"), '\n    <div class="sname">').concat(esc(st.name), '</div>\n    <dl class="kv"><dt>ID الطالب</dt><dd dir="ltr" style="text-align:right">#').concat(esc(code), "</dd><dt>").concat(multi ? "المجموعات" : "المجموعة", "</dt><dd>").concat(groups.length ? groups.map((g2) => esc(g2.place) + " · " + esc(schedText(g2))).join("<br>") : "—", "</dd><dt>عدد الحصص</dt><dd>").concat(ar(h0.rows.length), " حصة · حضر ").concat(ar(h0.p)).concat(h0.late ? " (منها ".concat(ar(h0.late), " متأخر)") : "", " · غاب ").concat(ar(h0.a)).concat(h0.un ? " · ".concat(UNMARKED, " ").concat(ar(h0.un)) : "", "</dd></dl>\n    ").concat(h0.rows.length ? '<div class="stats3"><div class="stat"><b>'.concat(h0.pct == null ? "—" : ar(h0.pct) + "٪", "</b><span>نسبة الحضور").concat(h0.un ? "<br><small>من ".concat(ar(h0.tot), " حصة متحدد فيها</small>") : "", '</span></div>\n      <div class="stat"><b>').concat(h0.hwPct == null ? "—" : ar(h0.hwPct) + "٪", '</b><span>حل الواجب</span></div>\n      <div class="stat"><b>').concat(h0.gradePct == null ? "—" : ar(h0.gradePct) + "٪", '</b><span>متوسط الدرجات</span></div></div>\n    <div class="tablewrap"><table><thead><tr><th>#</th><th>التاريخ</th><th>عنوان الحصة</th>').concat(multi ? "<th>المجموعة</th>" : "", "<th>الحضور</th>").concat(hasHw ? "<th>الواجب</th>" : "").concat(hasGr ? "<th>الدرجة</th>" : "").concat(hasNote ? "<th>ملاحظة</th>" : "", "</tr></thead><tbody>\n      ").concat(h0.rows.map((r, i) => "<tr><td>".concat(ar(h0.rows.length - i), '</td><td class="d">').concat(fmtShort(r.s.date), "</td><td>").concat(esc(r.s.title), "</td>").concat(multi ? "<td>".concat(esc(r.g.place), "</td>") : "", "<td>").concat(stLabel(r.v), "</td>").concat(hasHw ? "<td>".concat(hwLabel(r.hw), "</td>") : "").concat(hasGr ? '<td class="d">'.concat(typeof r.gr === "number" ? ar(r.gr) + " / " + ar(r.s.max) : "—", "</td>") : "").concat(hasNote ? '<td class="note">'.concat(esc(r.note), "</td>") : "", "</tr>")).join(""), "\n    </tbody></table></div>") : '<p class="empty">لسه مفيش حصص متسجّلة للطالب.</p>', "\n    ").concat(repFoot(), "</div>");
+    const html = '<div class="rep">'.concat(repHead("تقرير طالب"), '\n    <div class="sname">').concat(esc(st.name), '</div>\n    <dl class="kv"><dt>ID الطالب</dt><dd dir="ltr" style="text-align:right">#').concat(esc(code), "</dd><dt>").concat(multi ? "المجموعات" : "المجموعة", "</dt><dd>").concat(groups.length ? groups.map((g2) => esc(g2.place) + " · " + esc(schedText(g2)) + (g2.members.includes(code) ? "" : ' <span class="mini">(سابقًا)</span>')).join("<br>") : "—", "</dd><dt>عدد الحصص</dt><dd>").concat(ar(h0.rows.length), " حصة · حضر ").concat(ar(h0.p)).concat(h0.late || h0.mk ? " (منها ".concat([h0.late ? ar(h0.late) + " متأخر" : "", h0.mk ? ar(h0.mk) + " تعويض" : ""].filter(Boolean).join(" و"), ")") : "", " · غاب ").concat(ar(h0.a)).concat(h0.un ? " · ".concat(UNMARKED, " ").concat(ar(h0.un)) : "", "</dd></dl>\n    ").concat(h0.rows.length ? '<div class="stats3"><div class="stat"><b>'.concat(h0.pct == null ? "—" : ar(h0.pct) + "٪", "</b><span>نسبة الحضور").concat(h0.un ? "<br><small>من ".concat(ar(h0.tot), " حصة متحدد فيها</small>") : "", '</span></div>\n      <div class="stat"><b>').concat(h0.hwPct == null ? "—" : ar(h0.hwPct) + "٪", '</b><span>حل الواجب</span></div>\n      <div class="stat"><b>').concat(h0.gradePct == null ? "—" : ar(h0.gradePct) + "٪", '</b><span>متوسط الدرجات</span></div></div>\n    <div class="tablewrap"><table><thead><tr><th>#</th><th>التاريخ</th><th>عنوان الحصة</th>').concat(multi ? "<th>المجموعة</th>" : "", "<th>الحضور</th>").concat(hasHw ? "<th>الواجب</th>" : "").concat(hasGr ? "<th>الدرجة</th>" : "").concat(hasNote ? "<th>ملاحظة</th>" : "", "</tr></thead><tbody>\n      ").concat(h0.rows.map((r, i) => "<tr><td>".concat(ar(h0.rows.length - i), '</td><td class="d">').concat(fmtShort(r.s.date), "</td><td>").concat(esc(r.s.title), "</td>").concat(multi ? "<td>".concat(esc(r.g.place), "</td>") : "", "<td>").concat(stLabel(r), "</td>").concat(hasHw ? "<td>".concat(hwLabel(r.hw), "</td>") : "").concat(hasGr ? '<td class="d">'.concat(typeof r.gr === "number" ? ar(r.gr) + " / " + ar(r.grMax || r.s.max) : "—", "</td>") : "").concat(hasNote ? '<td class="note">'.concat(esc(r.note), "</td>") : "", "</tr>")).join(""), "\n    </tbody></table></div>") : '<p class="empty">لسه مفيش حصص متسجّلة للطالب.</p>', "\n    ").concat(repFoot(), "</div>");
     let m = "📘 *تقرير الطالب: ".concat(st.name, "*\nID: ").concat(code, "\n").concat(TEACHER, "\n\n");
     if (h0.rows.length) {
       m += "✅ الحضور: *".concat(h0.pct == null ? "—" : ar(h0.pct) + "٪", "* (حضر ").concat(ar(h0.p), " من ").concat(ar(h0.tot), " حصة").concat(h0.late ? "، منها ".concat(ar(h0.late), " متأخر") : "", ")\n");
@@ -1184,10 +1288,10 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       if (hasHw) m += "📝 حل الواجب: *".concat(ar(h0.hwPct), "٪* (").concat(ar(h0.hy), " من ").concat(ar(h0.hwT), ")\n");
       if (hasGr) m += "📊 متوسط الدرجات: *".concat(ar(h0.gradePct), "٪*\n");
       m += "\n*سجل الحصص:*\n" + h0.rows.map((r) => {
-        let x = "".concat(r.v === "p" ? "✅" : r.v === "l" ? "⏰" : r.v === "a" ? "❌" : "▫️", " ").concat(fmtShort(r.s.date), " — ").concat(r.s.title).concat(multi ? " (".concat(r.g.place, ")") : "").concat(r.v === "l" ? " (متأخر)" : r.v ? "" : " (".concat(UNMARKED, ")"));
+        let x = "".concat(r.v === "p" ? "✅" : r.v === "l" ? "⏰" : r.v === "m" ? "🔁" : r.v === "a" ? "❌" : "▫️", " ").concat(fmtShort(r.s.date), " — ").concat(r.s.title).concat(multi ? " (".concat(r.g.place, ")") : "").concat(r.v === "l" ? " (متأخر)" : r.v === "m" ? " (تعويض".concat(r.at ? " في ".concat(r.at.g.place) : "", ")") : r.guest ? " (تعويض)" : r.v ? "" : " (".concat(UNMARKED, ")"));
         const ex = [];
         if (r.hw) ex.push(r.hw === "y" ? "حل الواجب" : "لم يحل الواجب");
-        if (typeof r.gr === "number") ex.push("الدرجة ".concat(ar(r.gr), "/").concat(ar(r.s.max)));
+        if (typeof r.gr === "number") ex.push("الدرجة ".concat(ar(r.gr), "/").concat(ar(r.grMax || r.s.max)));
         if (r.note) ex.push(r.note);
         return ex.length ? x + "\n    ".concat(ex.join(" · ")) : x;
       }).join("\n");
@@ -1195,9 +1299,16 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     m += "\n\nللتواصل: ".concat(TPHONE);
     cur = { html, text: m, file: safeName("تقرير ".concat(st.name, " - ").concat(code)) + ".pdf" };
     let h = html + actions(st.phone);
+    {
+      const g0 = G();
+      if (S.form === "transfer" && g0 && g0.members.includes(code)) {
+        const others = db.groups.filter((x) => x !== g0 && !x.members.includes(code));
+        h += '<form class="card" data-form="transfer"><h3 class="ch3">نقل '.concat(esc(st.name), " من «").concat(esc(g0.place), "»</h3>\n      ").concat(others.length ? '<label class="field">المجموعة الجديدة<select name="to" id="t-to">'.concat(others.map((x) => '<option value="'.concat(x.id, '">').concat(esc(x.place)).concat(x.note ? " — " + esc(x.note) : "", "</option>")).join(""), '</select></label>\n      <label class="field">من تاريخ<input type="date" name="date" id="t-date" value="').concat(today(), '" required></label>\n      <p class="hint" style="margin:0">الحصص قبل التاريخ ده تفضل محسوبة في المجموعة القديمة، واللي بعده في الجديدة. سجله كله بيفضل في تقرير واحد، والفلوس مش بتتأثر.</p>\n      <div class="row"><button class="btn primary" type="submit">نقل</button><button class="btn" type="button" data-act="cancel">إلغاء</button></div>') : '<p class="hint">الطالب موجود في كل المجموعات التانية بالفعل.</p><div class="row"><button class="btn" type="button" data-act="cancel">إلغاء</button></div>', "</form>");
+      }
+    }
     if (!st.phone) h += '<p class="hint">ضيف رقم ولي الأمر تحت علشان نص التقرير يروح له مباشرة.</p>';
     const g = G(), inGroup = S.from === "group" && g && g.members.includes(code);
-    h += '<details class="card" '.concat(st.phone ? "" : "open", '><summary>بيانات الطالب</summary>\n    <form data-form="editStudent" style="display:flex;flex-direction:column;gap:10px">\n      <div class="two"><label class="field">الاسم<input type="text" name="name" id="e-sname" required value="').concat(esc(st.name), '"></label>\n      <label class="field">واتساب ولي الأمر<input type="tel" name="phone" id="e-sphone" dir="ltr" value="').concat(esc(st.phone), '" placeholder="2010xxxxxxxx"></label></div>\n      <label class="field">ID الطالب (ثابت ومربوط بسجله)<input type="text" id="e-scode" dir="ltr" value="').concat(esc(code), '" readonly></label>\n      <p class="hint">اكتب الرقم بكود الدولة: مصر 20، السعودية 966.</p>\n      <div class="row"><button class="btn primary" type="submit">حفظ</button>\n        ').concat(inGroup ? '<button class="btn danger" type="button" data-act="removeFromGroup">إخراجه من المجموعة</button>' : "", '\n        <button class="btn danger" type="button" data-act="delStudent">حذف الطالب وسجله نهائيًا</button></div>\n      ').concat(inGroup ? '<p class="hint">إخراجه من المجموعة بيحتفظ بسجله، ولو رجّعته بنفس الـ ID سجله هيرجع معاه.</p>' : "", "\n    </form></details>");
+    h += '<details class="card" '.concat(st.phone ? "" : "open", '><summary>بيانات الطالب</summary>\n    <form data-form="editStudent" style="display:flex;flex-direction:column;gap:10px">\n      <div class="two"><label class="field">الاسم<input type="text" name="name" id="e-sname" required value="').concat(esc(st.name), '"></label>\n      <label class="field">واتساب ولي الأمر<input type="tel" name="phone" id="e-sphone" dir="ltr" value="').concat(esc(st.phone), '" placeholder="2010xxxxxxxx"></label></div>\n      <label class="field">ID الطالب (ثابت ومربوط بسجله)<input type="text" id="e-scode" dir="ltr" value="').concat(esc(code), '" readonly></label>\n      <p class="hint">اكتب الرقم بكود الدولة: مصر 20، السعودية 966.</p>\n      <div class="row"><button class="btn primary" type="submit">حفظ</button>\n        ').concat(inGroup && db.groups.length > 1 ? '<button class="btn" type="button" data-act="transferOpen">نقل لمجموعة تانية</button>' : "", "\n        ").concat(inGroup ? '<button class="btn danger" type="button" data-act="removeFromGroup">إخراجه من المجموعة</button>' : "", '\n        <button class="btn danger" type="button" data-act="delStudent">حذف الطالب وسجله نهائيًا</button></div>\n      ').concat(inGroup ? '<p class="hint">إخراجه من المجموعة بيحتفظ بسجله، ولو رجّعته بنفس الـ ID سجله هيرجع معاه.</p>' : "", "\n    </form></details>");
     return h;
   }
   let renderPending = false, stuck = false;
@@ -1275,12 +1386,32 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     applyFilter();
   }
   function go(p) {
-    Object.assign(S, { form: null, q: "" }, p);
+    Object.assign(S, { form: null, q: "", guestPick: false, mkOffer: null }, p);
     render();
     window.scrollTo(0, 0);
   }
+  function findGuestSession(g, s, c) {
+    let best = null;
+    db.groups.forEach((h) => {
+      if (h === g) return;
+      h.sessions.forEach((x) => {
+        if (isGuest(h, x, c) && daysBetween(x.date, s.date) <= 6 && (!best || daysBetween(x.date, s.date) < best.d)) best = { d: daysBetween(x.date, s.date), gid: h.id, sid: x.id };
+      });
+    });
+    return best ? { gid: best.gid, sid: best.sid } : null;
+  }
+  function unlinkGuest(g, s, c) {
+    db.groups.forEach((h) => h.sessions.forEach((x) => {
+      const k = x.mk[c];
+      if (k && k.gid === g.id && k.sid === s.id) {
+        delete x.mk[c];
+        if (x.marks[c] === "m") delete x.marks[c];
+        W.session(h, x);
+      }
+    }));
+  }
   document.addEventListener("click", (e) => {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     const t = e.target.closest("[data-act]");
     if (!t || t.tagName === "A") return;
     const a = t.dataset.act, g = G();
@@ -1382,14 +1513,74 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         go({ screen: t.dataset.to, ...t.dataset.to === "group" && S.screen === "student" ? { tab: "students" } : {} });
         break;
       case "mark": {
-        const s = SES(g), c = t.dataset.code, v = t.dataset.st;
+        const s = SES(g), c = t.dataset.code, v = t.dataset.st, wasGuest = isGuest(g, s, c);
         if (s.marks[c] === v) delete s.marks[c];
         else s.marks[c] = v;
+        if (s.marks[c] === "m") {
+          const link = findGuestSession(g, s, c);
+          if (link) s.mk[c] = link;
+          else delete s.mk[c];
+        } else delete s.mk[c];
+        if (wasGuest && !s.marks[c]) unlinkGuest(g, s, c);
         touch();
         W.session(g, s);
         render();
         break;
       }
+      case "guestPick":
+        S.guestPick = true;
+        render();
+        (_d = $("gq")) == null ? void 0 : _d.focus();
+        break;
+      case "guestPickClose":
+        S.guestPick = false;
+        render();
+        break;
+      case "guestAdd": {
+        const s = SES(g), c = t.dataset.code;
+        s.marks[c] = "p";
+        S.guestPick = false;
+        touch();
+        W.session(g, s);
+        const cand = mkCandidates(g, s, c)[0];
+        S.mkOffer = cand ? { sid: s.id, code: c, hgid: cand.g.id, hsid: cand.s.id } : { sid: s.id, code: c, none: true };
+        render();
+        toast("اتضاف ".concat(NAME(c), " تعويض"));
+        break;
+      }
+      case "guestDel": {
+        const s = SES(g), c = t.dataset.code;
+        delete s.marks[c];
+        ["hw", "grades", "notes"].forEach((k) => delete s[k][c]);
+        unlinkGuest(g, s, c);
+        if (S.mkOffer && S.mkOffer.code === c) S.mkOffer = null;
+        touch();
+        W.session(g, s);
+        render();
+        break;
+      }
+      case "mkYes": {
+        const o = S.mkOffer, hg = o && gById(o.hgid), hs = hg && hg.sessions.find((x) => x.id === o.hsid);
+        if (hs) {
+          hs.marks[o.code] = "m";
+          hs.mk[o.code] = { gid: g.id, sid: o.sid };
+          W.session(hg, hs);
+          toast("اتعلّم «حضر تعويض» في ".concat(hg.place));
+        }
+        S.mkOffer = null;
+        touch();
+        render();
+        break;
+      }
+      case "mkNo":
+        S.mkOffer = null;
+        render();
+        break;
+      case "transferOpen":
+        S.form = "transfer";
+        render();
+        (_e = $("t-to")) == null ? void 0 : _e.focus();
+        break;
       case "hw": {
         const s = SES(g), c = t.dataset.code, v = t.dataset.v;
         if (s.hw[c] === v) delete s.hw[c];
@@ -1430,7 +1621,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       case "removeFromGroup":
         armed(t, () => {
           g.members = g.members.filter((c) => c !== S.code);
-          delete g.joined[S.code];
+          g.left[S.code] = today();
           W.group(g);
           go({ screen: "group", tab: "students" });
           toast("خرج من المجموعة وسجله محفوظ");
@@ -1446,9 +1637,14 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
               x.members = x.members.filter((m) => m !== c);
               W.group(x);
             }
+            if (c in x.joined || c in x.left) {
+              delete x.joined[c];
+              delete x.left[c];
+              W.group(x);
+            }
             x.sessions.forEach((s) => {
               let ch = false;
-              ["marks", "hw", "grades", "notes"].forEach((k) => {
+              ["marks", "hw", "grades", "notes", "mk"].forEach((k) => {
                 if (c in s[k]) {
                   delete s[k][c];
                   ch = true;
@@ -1467,8 +1663,6 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         armed(t, () => {
           db.groups = db.groups.filter((x) => x !== g);
           g.sessions.forEach((s) => W.session(g, s, true));
-          db.payments.filter((p) => p.gid === g.id).forEach((p) => W.payment(p, true));
-          db.payments = db.payments.filter((p) => p.gid !== g.id);
           W.group(g, true);
           go({ screen: "home" });
           toast("اتحذفت المجموعة");
@@ -1497,6 +1691,13 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     if (e.target.id === "q") {
       S.q = e.target.value;
       applyFilter();
+      return;
+    }
+    if (e.target.id === "gq") {
+      const q = normAr(e.target.value);
+      $("view").querySelectorAll("[data-gq]").forEach((el) => {
+        el.hidden = !!q && !el.dataset.gq.split(" ").some((w) => w.startsWith(q)) && !el.dataset.gq.includes(q);
+      });
       return;
     }
     if (e.target.id === "f-fee") {
@@ -1569,6 +1770,21 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     e.preventDefault();
     const f = e.target, fd = new FormData(f), g = G();
     switch (f.dataset.form) {
+      case "transfer": {
+        const code = S.code, to = gById(fd.get("to")), d = fd.get("date") || today();
+        if (!to || !g) return;
+        g.members = g.members.filter((c) => c !== code);
+        g.left[code] = d;
+        if (!to.members.includes(code)) to.members.push(code);
+        to.joined[code] = d;
+        delete to.left[code];
+        W.group(g);
+        W.group(to);
+        touch();
+        go({ screen: "student", code, from: "group", gid: to.id });
+        toast("اتنقل لـ ".concat(to.place, " من ").concat(fmtShort(d)));
+        break;
+      }
       case "setFee": {
         const n = toNum(fd.get("fee"));
         if (n === null || isNaN(n) || n < 0) {
@@ -1697,6 +1913,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         }
         if (g.sessions.length) g.joined[c] = today();
         else delete g.joined[c];
+        delete g.left[c];
         g.members.push(c);
         touch();
         W.group(g);
