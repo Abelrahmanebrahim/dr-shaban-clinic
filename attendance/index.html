@@ -1208,11 +1208,14 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     } else h += '<p class="hint" style="margin:0">لو طالب من مجموعة تانية جه يعوّض الحصة دي، ضيفه هنا. مش هيتحسب على المجموعة دي في الفلوس أو الغياب.</p>';
     if (S.guestPick) {
       const roster = new Set(rosterFor(g, s));
-      const cands = sortCodes(Object.keys(db.students).filter((c) => !roster.has(c) && !s.marks[c]));
-      h += '<div class="sbox"><input type="search" id="gq" placeholder="ابحث باسم الطالب أو الـ ID" autocomplete="off" aria-label="ابحث عن طالب تعويض"></div>\n      '.concat(cands.length ? '<ul class="list pick">'.concat(cands.map((c) => {
+      const all = Object.keys(db.students).filter((c) => !roster.has(c) && !s.marks[c]);
+      const sameGrade = (c) => db.groups.some((x) => x !== g && x.note === g.note && x.members.includes(c));
+      const filtered = !!g.note && !S.guestAll;
+      const cands = sortCodes(filtered ? all.filter(sameGrade) : all), hidden = all.length - cands.length;
+      h += "".concat(g.note ? '<p class="hint gradeline">'.concat(filtered ? "طلاب <b>".concat(esc(g.note), "</b> بس") : "طلاب كل الصفوف", "</p>") : "", '\n      <div class="sbox"><input type="search" id="gq" placeholder="ابحث باسم الطالب أو الـ ID" autocomplete="off" aria-label="ابحث عن طالب تعويض"></div>\n      ').concat(cands.length ? '<ul class="list pick">'.concat(cands.map((c) => {
         const home2 = db.groups.filter((x) => x.members.includes(c)).map((x) => x.place).join("، ");
         return '<li data-gq="'.concat(esc(normAr(NAME(c) + " " + c)), '"><button class="strow" data-act="guestAdd" data-code="').concat(esc(c), '"><span class="nm">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), "</span>").concat(home2 ? '<span class="mini">'.concat(esc(home2), "</span>") : "", "</button></li>");
-      }).join(""), "</ul>") : '<p class="hint">مفيش طلاب تانيين مسجّلين.</p>', '\n      <div class="row"><button class="btn" data-act="guestPickClose">إلغاء</button></div>');
+      }).join(""), "</ul>") : '<p class="hint">'.concat(filtered ? "مفيش طلاب ".concat(esc(g.note), " في مجموعات تانية.") : "مفيش طلاب تانيين مسجّلين.", "</p>"), '\n      <div class="row">').concat(filtered && hidden ? '<button class="btn" data-act="guestAll">عرض طلاب كل الصفوف ('.concat(ar(hidden), ")</button>") : "").concat(g.note && S.guestAll ? '<button class="btn" data-act="guestGrade">طلاب '.concat(esc(g.note), " بس</button>") : "", '<button class="btn" data-act="guestPickClose">إلغاء</button></div>');
     } else h += '<button class="btn block" data-act="guestPick">+ طالب من مجموعة تانية (تعويض)</button>';
     return h + "</div>";
   }
@@ -1386,7 +1389,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     applyFilter();
   }
   function go(p) {
-    Object.assign(S, { form: null, q: "", guestPick: false, mkOffer: null }, p);
+    Object.assign(S, { form: null, q: "", guestPick: false, guestAll: false, mkOffer: null }, p);
     render();
     window.scrollTo(0, 0);
   }
@@ -1411,7 +1414,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     }));
   }
   document.addEventListener("click", (e) => {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g;
     const t = e.target.closest("[data-act]");
     if (!t || t.tagName === "A") return;
     const a = t.dataset.act, g = G();
@@ -1527,10 +1530,21 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         render();
         break;
       }
-      case "guestPick":
-        S.guestPick = true;
+      case "guestAll":
+        S.guestAll = true;
         render();
         (_d = $("gq")) == null ? void 0 : _d.focus();
+        break;
+      case "guestGrade":
+        S.guestAll = false;
+        render();
+        (_e = $("gq")) == null ? void 0 : _e.focus();
+        break;
+      case "guestPick":
+        S.guestPick = true;
+        S.guestAll = false;
+        render();
+        (_f = $("gq")) == null ? void 0 : _f.focus();
         break;
       case "guestPickClose":
         S.guestPick = false;
@@ -1579,7 +1593,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       case "transferOpen":
         S.form = "transfer";
         render();
-        (_e = $("t-to")) == null ? void 0 : _e.focus();
+        (_g = $("t-to")) == null ? void 0 : _g.focus();
         break;
       case "hw": {
         const s = SES(g), c = t.dataset.code, v = t.dataset.v;
