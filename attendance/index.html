@@ -309,6 +309,32 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
 .gradeh{font-family:var(--f-verse);font-size:20px;display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--line);padding-bottom:4px}
 .gradeh small{font-family:var(--f-ui);font-size:12px;color:var(--muted);font-weight:500}
 
+.stabs button .ndot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);vertical-align:middle;margin-inline-start:2px}
+.snote{flex:none;font-size:12px;font-weight:600;color:var(--gold);background:var(--gold-soft);border-radius:999px;padding:0 9px;white-space:nowrap}
+.notes textarea{font-size:15px;line-height:1.7}
+.nadd{display:flex;flex-wrap:wrap;gap:8px}
+.nadd .btn{position:relative;cursor:pointer}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+.nadd label.btn:focus-within{outline:2px solid var(--gold);outline-offset:2px}
+.recdot{width:10px;height:10px;border-radius:50%;background:var(--bad);display:inline-block}
+.recbtn{animation:recpulse 1.4s ease-in-out infinite}
+@keyframes recpulse{50%{opacity:.75}}
+.ngrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.nitem{display:flex;flex-direction:column;gap:6px;min-width:0}
+.nthumb{padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sunk);aspect-ratio:4/3;max-width:100%}
+.nthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.nmeta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px}
+.ndel{background:none;border:0;color:var(--bad);font-weight:600;font-size:12px;padding:0;margin-inline-start:auto}
+.ndel.armed{text-decoration:underline}
+.nitem.aud{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.nitem audio{width:100%;max-width:100%}
+.nmiss{display:none;font-size:12px;color:var(--muted)}
+.nitem.missing .nmiss{display:block}
+.nitem.missing audio,.nitem.missing .nthumb img{display:none}
+.lightbox{position:fixed;inset:0;z-index:30;background:rgb(10 14 28 / .88);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.lightbox img{max-width:100%;max-height:80vh;border-radius:8px;object-fit:contain}
+@media (prefers-reduced-motion:reduce){.recbtn{animation:none}}
+
 .toast{position:fixed;inset-inline:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));margin:auto;max-width:360px;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:10px;text-align:center;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}
 .toast.on{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -387,6 +413,10 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
   function normSes(s) {
     s.marks = s.marks || {};
     s.mk = s.mk || {};
+    s.log = s.log || {};
+    s.log.stop = s.log.stop || "";
+    s.log.text = s.log.text || "";
+    s.log.items = s.log.items || [];
     s.hw = s.hw || {};
     s.grades = s.grades || {};
     s.notes = s.notes || {};
@@ -627,7 +657,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       else saveLocal();
     },
     session(g, s, del) {
-      if (mode === "cloud") put("sessions/" + s.id, del ? null : { gid: g.id, date: s.date, title: s.title, marks: s.marks, hw: s.hw, grades: s.grades, notes: s.notes, mk: s.mk, max: s.max });
+      if (mode === "cloud") put("sessions/" + s.id, del ? null : { gid: g.id, date: s.date, title: s.title, marks: s.marks, hw: s.hw, grades: s.grades, notes: s.notes, mk: s.mk, log: s.log, max: s.max });
       else saveLocal();
     },
     all() {
@@ -755,7 +785,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     $("qempty").hidden = shown > 0;
     $("qcount").textContent = q ? "".concat(ar(shown), " من ").concat(ar(items.length)) : "".concat(ar(items.length), " طالب");
   }
-  const S = { guestPick: false, mkOffer: null, q: "", screen: "home", gid: null, sesId: null, code: null, from: "home", tab: "sessions", stab: "att", form: null, month: null, payFor: null };
+  const S = { lightbox: null, busy: 0, guestPick: false, mkOffer: null, q: "", screen: "home", gid: null, sesId: null, code: null, from: "home", tab: "sessions", stab: "att", form: null, month: null, payFor: null };
   const G = () => db.groups.find((g) => g.id === S.gid);
   const SES = (g) => g && g.sessions.find((s) => s.id === S.sesId);
   const sorted = (g) => [...g.sessions].sort((a, b) => b.date.localeCompare(a.date));
@@ -1070,6 +1100,242 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       }
     }
   }
+  const MEDIA_DB = "arabic-attendance-media";
+  let idbP = null;
+  function idb() {
+    if (idbP) return idbP;
+    idbP = new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open(MEDIA_DB, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("files");
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      } catch (e) {
+        rej(e);
+      }
+    });
+    idbP.catch(() => {
+      idbP = null;
+    });
+    return idbP;
+  }
+  async function idbPut(key, blob) {
+    const d = await idb();
+    return new Promise((res, rej) => {
+      const tx = d.transaction("files", "readwrite");
+      tx.objectStore("files").put(blob, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  }
+  async function idbGet(key) {
+    const d = await idb();
+    return new Promise((res, rej) => {
+      const r = d.transaction("files").objectStore("files").get(key);
+      r.onsuccess = () => res(r.result || null);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function idbDel(key) {
+    try {
+      const d = await idb();
+      d.transaction("files", "readwrite").objectStore("files").delete(key);
+    } catch (e) {
+    }
+  }
+  let assetsP = null;
+  const getAssets = () => {
+    if (!inViewer) return Promise.resolve(null);
+    if (!assetsP) assetsP = window.claude.use("assets").catch(() => null);
+    return assetsP;
+  };
+  const baseType = (t) => String(t || "").split(";")[0].trim().toLowerCase();
+  function uploadType(blob) {
+    const t = baseType(blob.type);
+    if (t.indexOf("image/") === 0) return ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(t) ? t : null;
+    if (t === "audio/webm" || t === "video/webm") return "video/webm";
+    if (["audio/mp4", "audio/x-m4a", "audio/m4a", "video/mp4"].includes(t)) return "video/mp4";
+    return null;
+  }
+  async function storeMedia(blob) {
+    if (mode === "cloud") {
+      const a = await getAssets(), type = uploadType(blob);
+      if (a && type) {
+        try {
+          const r = await a.upload(blob, { type });
+          return { ref: "a:" + r.id, where: "cloud" };
+        } catch (e) {
+          if (e && e.code === "too_large") throw e;
+        }
+      }
+    }
+    const key = uid();
+    await idbPut(key, blob);
+    return { ref: "l:" + key, where: "local" };
+  }
+  const urlCache = /* @__PURE__ */ new Map();
+  async function mediaURL(ref) {
+    if (ref.indexOf("a:") === 0) return "/_blob/" + ref.slice(2);
+    if (urlCache.has(ref)) return urlCache.get(ref);
+    const b = await idbGet(ref.slice(2));
+    if (!b) return null;
+    const u = URL.createObjectURL(b);
+    urlCache.set(ref, u);
+    return u;
+  }
+  async function dropMedia(ref) {
+    if (ref.indexOf("a:") === 0) {
+      const a = await getAssets();
+      try {
+        if (a) await a.delete(ref.slice(2));
+      } catch (e) {
+      }
+    } else {
+      idbDel(ref.slice(2));
+      const u = urlCache.get(ref);
+      if (u) {
+        URL.revokeObjectURL(u);
+        urlCache.delete(ref);
+      }
+    }
+  }
+  function hydrateMedia() {
+    $("view").querySelectorAll("[data-ref]").forEach((el) => {
+      const miss = () => {
+        const it = el.closest(".nitem");
+        if (it) it.classList.add("missing");
+      };
+      mediaURL(el.dataset.ref).then((u) => {
+        if (!el.isConnected) return;
+        if (u) el.src = u;
+        else miss();
+      }).catch(miss);
+    });
+  }
+  document.addEventListener("error", (e) => {
+    const el = e.target;
+    if (el && el.dataset && el.dataset.ref) {
+      const it = el.closest(".nitem");
+      if (it) it.classList.add("missing");
+    }
+  }, true);
+  async function compressImage(file) {
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = rej;
+        setTimeout(() => rej(new Error("timeout")), 1e4);
+        i.src = url;
+      });
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * k);
+      c.height = Math.round(img.naturalHeight * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const b = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.82));
+      return b || file;
+    } catch (e) {
+      return file;
+    }
+  }
+  const findSes = (gid, sid) => {
+    const g = gById(gid), s = g && g.sessions.find((x) => x.id === sid);
+    return s ? { g, s } : null;
+  };
+  async function addNoteBlobs(gid, sid, blobs, kind, dur) {
+    S.busy = (S.busy || 0) + blobs.length;
+    scheduleRender();
+    for (const f of blobs) {
+      try {
+        const blob = kind === "img" ? await compressImage(f) : f;
+        if (blob.size > 20 * 1024 * 1024) {
+          toast("الملف أكبر من ٢٠ ميجا");
+          continue;
+        }
+        const r = await storeMedia(blob), cur2 = findSes(gid, sid);
+        if (!cur2) {
+          dropMedia(r.ref);
+          continue;
+        }
+        cur2.s.log.items.push({ id: uid(), kind, ref: r.ref, where: r.where, at: Date.now(), dur: dur ? Math.round(dur) : 0 });
+        touch();
+        W.session(cur2.g, cur2.s);
+        if (mode === "cloud" && r.where === "local") toast("الملف ده اتحفظ على الجهاز ده بس، لأن صيغته مش مدعومة أونلاين");
+      } catch (e) {
+        toast(e && e.code === "too_large" ? "الملف أكبر من ٢٠ ميجا" : kind === "img" ? "تعذّر حفظ الصورة" : "تعذّر حفظ التسجيل");
+      } finally {
+        S.busy--;
+      }
+    }
+    scheduleRender();
+  }
+  const fmtDur = (sec) => {
+    sec = Math.max(0, Math.round(sec));
+    return "".concat(Math.floor(sec / 60), ":").concat(String(sec % 60).padStart(2, "0"));
+  };
+  const canRecord = () => !inViewer && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+  let rec = null;
+  async function startRec() {
+    if (!canRecord()) {
+      toast("التسجيل مش مدعوم هنا، استخدم «ملف صوتي»");
+      return;
+    }
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      toast("مش قادر يفتح الميكروفون. اسمح للمتصفح باستخدامه، أو استخدم «ملف صوتي»");
+      return;
+    }
+    const mt = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((t) => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t));
+    let mr;
+    try {
+      mr = new MediaRecorder(stream, mt ? { mimeType: mt } : void 0);
+    } catch (e) {
+      stream.getTracks().forEach((t) => t.stop());
+      toast("التسجيل مش مدعوم هنا، استخدم «ملف صوتي»");
+      return;
+    }
+    const r = { mr, stream, chunks: [], start: Date.now(), gid: S.gid, sid: S.sesId };
+    r.timer = setInterval(() => {
+      const el = $("rectime");
+      if (el) el.textContent = fmtDur((Date.now() - r.start) / 1e3);
+    }, 500);
+    mr.ondataavailable = (e) => {
+      if (e.data && e.data.size) r.chunks.push(e.data);
+    };
+    mr.onstop = () => {
+      clearInterval(r.timer);
+      r.stream.getTracks().forEach((t) => t.stop());
+      if (rec === r) rec = null;
+      const blob = new Blob(r.chunks, { type: baseType(mr.mimeType || mt || "audio/webm") });
+      if (!blob.size) {
+        render();
+        return;
+      }
+      addNoteBlobs(r.gid, r.sid, [blob], "audio", (Date.now() - r.start) / 1e3);
+    };
+    rec = r;
+    mr.start(1e3);
+    render();
+  }
+  function stopRec() {
+    if (rec && rec.mr.state !== "inactive") rec.mr.stop();
+  }
+  const hasLog = (s) => !!(s.log.stop || s.log.text || s.log.items.length);
+  function notesTab(g, s) {
+    const L = s.log, imgs = L.items.filter((x) => x.kind === "img"), auds = L.items.filter((x) => x.kind === "audio");
+    const recHere = rec && rec.sid === s.id;
+    let h = '<div class="card notes">\n    <label class="field">وقفت عند<input type="text" id="log-stop" value="'.concat(esc(L.stop), '" placeholder="مثال: خلصت كان وأخواتها، فاضل تدريبات صفحة ٤٥"></label>\n    <label class="field">ملاحظات<textarea id="log-text" rows="5" placeholder="أي حاجة عاوز تفتكرها قبل الحصة الجاية">').concat(esc(L.text), '</textarea></label>\n    <p class="hint">الكلام بيتحفظ وإنت بتكتب. الملاحظات دي ليك إنت بس، ومش بتظهر في أي تقرير.</p>\n    <div class="nadd">\n      <label class="btn"><input type="file" accept="image/*" multiple id="log-img" class="vh">+ صورة</label>\n      ').concat(canRecord() ? recHere ? '<button class="btn danger armed recbtn" data-act="recStop">⏹ إيقاف التسجيل <span id="rectime" dir="ltr">'.concat(fmtDur((Date.now() - rec.start) / 1e3), "</span></button>") : '<button class="btn" data-act="recStart"'.concat(rec ? " disabled" : "", '><span class="recdot"></span> تسجيل صوتي</button>') : "", '\n      <label class="btn"><input type="file" accept="audio/*" id="log-aud" class="vh">+ ملف صوتي</label>\n    </div>\n    ').concat(S.busy ? '<p class="hint">جاري حفظ '.concat(ar(S.busy), " ملف…</p>") : "", "\n    ").concat(!canRecord() && inViewer ? '<p class="hint">التسجيل من جوه الصفحة مش متاح هنا. سجّل من تطبيق التسجيل في الموبايل، وضيفه بزرار «ملف صوتي».</p>' : "", "\n    ").concat(mode !== "cloud" && L.items.length ? '<p class="hint">الصور والتسجيلات محفوظة على الجهاز ده بس، ومش بتدخل في النسخة الاحتياطية.</p>' : "");
+    if (imgs.length) h += '<div class="ngrid">'.concat(imgs.map((x) => '<div class="nitem img"><button class="nthumb" data-act="lightbox" data-ref="'.concat(esc(x.ref), '" aria-label="تكبير الصورة"><img alt="صورة من ملاحظات الحصة" data-ref="').concat(esc(x.ref), '"></button>\n      <div class="nmeta">').concat(x.where === "local" && mode === "cloud" ? '<span class="mini">على الجهاز ده بس</span>' : "", '<button class="ndel" data-act="logDel" data-id="').concat(x.id, '">حذف</button></div><span class="nmiss">الصورة مش موجودة على الجهاز ده</span></div>')).join(""), "</div>");
+    if (auds.length) h += '<ul class="list">'.concat(auds.map((x, i) => '<li class="nitem aud"><div class="nmeta"><b>تسجيل '.concat(ar(i + 1), "</b>").concat(x.dur ? '<span class="mini" dir="ltr">'.concat(fmtDur(x.dur), "</span>") : "", '<span class="mini">').concat(new Date(x.at).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }), "</span>").concat(x.where === "local" && mode === "cloud" ? '<span class="mini">على الجهاز ده بس</span>' : "", '<button class="ndel" data-act="logDel" data-id="').concat(x.id, '">حذف</button></div>\n      <audio controls preload="metadata" data-ref="').concat(esc(x.ref), '"></audio><span class="nmiss">التسجيل مش موجود على الجهاز ده</span></li>')).join(""), "</ul>");
+    if (!L.items.length && !L.stop && !L.text) h += '<p class="empty" style="padding:10px">لسه مفيش ملاحظات للحصة دي.</p>';
+    h += "</div>";
+    if (S.lightbox) h += '<div class="lightbox" data-act="lightboxClose"><img alt="صورة من ملاحظات الحصة" data-ref="'.concat(esc(S.lightbox), '"><button class="btn" data-act="lightboxClose">إغلاق</button></div>');
+    return h;
+  }
   const GRADES = ["أولى إعدادي", "ثانية إعدادي", "ثالثة إعدادي", "أولى ثانوي", "ثانية ثانوي", "ثالثة ثانوي"];
   function feeCalc(fee, n) {
     if (fee == null || fee === "" || isNaN(fee)) return "اكتب اشتراك الطالب، والمتوقع في الشهر هيتحسب لوحده: الاشتراك × عدد الطلاب.";
@@ -1090,13 +1356,15 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     const stageOf = (g) => GRADES.indexOf(g.note) < 0 ? "none" : GRADES.indexOf(g.note) < 3 ? "prep" : "sec";
     const by = { prep: [], sec: [], none: [] };
     db.groups.forEach((g) => by[stageOf(g)].push(g));
-    if (!S.stage || S.stage === "none" && !by.none.length) {
+    if (!S.stage || S.stage === "none" && !by.none.length || S.stageAuto && !by[S.stage].length) {
+      S.stageAuto = true;
       let saved = null;
       try {
         saved = localStorage.getItem(KEY + "-stage");
       } catch (e) {
       }
-      S.stage = saved && (saved !== "none" || by.none.length) ? saved : by.prep.length || !by.sec.length ? "prep" : "sec";
+      const firstFull = ["prep", "sec", "none"].find((k) => by[k].length) || "prep";
+      S.stage = saved && by[saved] && by[saved].length ? saved : firstFull;
     }
     const stages = [["prep", "الإعدادي"], ["sec", "الثانوي"], ...by.none.length ? [["none", "بدون صف"]] : []];
     h += '<div class="sechead"><h2>مجموعاتي</h2>'.concat(S.form === "group" ? "" : '<button class="btn primary" data-act="newGroup">+ مجموعة جديدة</button>', "</div>");
@@ -1132,7 +1400,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       const ss = sorted(g);
       h += ss.length ? '<ul class="list">'.concat(ss.map((s) => {
         const c = cnt(g, s), st = sesStats(s);
-        return '<li><button class="srow" data-act="openSession" data-id="'.concat(s.id, '">\n        <span class="sdate"><b>').concat(dayNum(s.date), "</b><small>").concat(monName(s.date), '</small></span>\n        <span class="sbody"><span class="stitle">').concat(esc(s.title), '</span><span class="ssub">').concat(D(s.date).toLocaleDateString("ar-EG", { weekday: "long" }), " · حضر ").concat(ar(c.came), " من ").concat(ar(c.tot)).concat(c.l ? " (".concat(ar(c.l), " متأخر)") : "").concat(st.hwT ? " · الواجب ".concat(ar(st.hwY), "/").concat(ar(st.hwT)) : "").concat(st.avg != null && s.max ? " · متوسط ".concat(ar(st.avg), "/").concat(ar(s.max)) : "", "</span></span>\n        ").concat(c.n ? '<span class="sun" title="طلاب لسه ماتحددتش حالتهم">'.concat(ar(c.n), " ").concat(UNMARKED, "</span>") : "").concat(c.a ? '<span class="sabs">'.concat(ar(c.a), " غياب</span>") : "", "\n      </button></li>");
+        return '<li><button class="srow" data-act="openSession" data-id="'.concat(s.id, '">\n        <span class="sdate"><b>').concat(dayNum(s.date), "</b><small>").concat(monName(s.date), '</small></span>\n        <span class="sbody"><span class="stitle">').concat(esc(s.title), '</span><span class="ssub">').concat(D(s.date).toLocaleDateString("ar-EG", { weekday: "long" }), " · حضر ").concat(ar(c.came), " من ").concat(ar(c.tot)).concat(c.l ? " (".concat(ar(c.l), " متأخر)") : "").concat(st.hwT ? " · الواجب ".concat(ar(st.hwY), "/").concat(ar(st.hwT)) : "").concat(st.avg != null && s.max ? " · متوسط ".concat(ar(st.avg), "/").concat(ar(s.max)) : "", "</span></span>\n        ").concat(hasLog(s) ? '<span class="snote">ملاحظات</span>' : "").concat(c.n ? '<span class="sun" title="طلاب لسه ماتحددتش حالتهم">'.concat(ar(c.n), " ").concat(UNMARKED, "</span>") : "").concat(c.a ? '<span class="sabs">'.concat(ar(c.a), " غياب</span>") : "", "\n      </button></li>");
       }).join(""), "</ul>") : '<p class="empty">لسه مفيش حصص في المجموعة دي.</p>';
     }
     if (S.tab === "students") {
@@ -1203,8 +1471,8 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       var _a;
       return '<li class="orow"><span class="nm">'.concat(esc(NAME(o.c)), ' <span class="mini">· ').concat(esc(o.g.place), '</span></span><span class="pstat ').concat(o.s.st, '">').concat(money(o.s.left), '</span>\n      <a class="btn wa-line sm" href="').concat(waLink(reminderText(o.g, o.c, m), (_a = db.students[o.c]) == null ? void 0 : _a.phone), '" target="_blank" rel="noopener">تذكير</a></li>');
     }).join(""), "</ul>") : '<p class="hint">مفيش متأخرات في الشهر ده.</p>', "</div>");
-    const rec = db.payments.filter((p) => p.month === m).sort((a, b) => b.date.localeCompare(a.date));
-    h += '<div class="card"><h3 class="ch3">الدفعات المسجّلة لشهر '.concat(monthLabel(m), "</h3>").concat(rec.length ? '<div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الطالب</th><th>المجموعة</th><th>المبلغ</th></tr></thead><tbody>\n    '.concat(rec.map((p) => {
+    const rec2 = db.payments.filter((p) => p.month === m).sort((a, b) => b.date.localeCompare(a.date));
+    h += '<div class="card"><h3 class="ch3">الدفعات المسجّلة لشهر '.concat(monthLabel(m), "</h3>").concat(rec2.length ? '<div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الطالب</th><th>المجموعة</th><th>المبلغ</th></tr></thead><tbody>\n    '.concat(rec2.map((p) => {
       const g = db.groups.find((x) => x.id === p.gid);
       return '<tr><td class="d">'.concat(fmtShort(p.date), "</td><td>").concat(esc(NAME(p.code)), "</td><td>").concat(esc((g == null ? void 0 : g.place) || "—"), '</td><td class="d">').concat(money(p.amount), "</td></tr>");
     }).join(""), "\n    </tbody></table></div>") : '<p class="hint">لسه مفيش دفعات متسجّلة.</p>', "</div>");
@@ -1254,8 +1522,10 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
   function sessionScreen(g, s) {
     var _a;
     const c = cnt(g, s), st = sesStats(s);
-    let h = '<div class="card shero">\n      <h2>'.concat(esc(s.title), '</h2>\n      <span class="gtime">').concat(fmtDate(s.date), '</span>\n      <span class="hint">').concat(esc(g.place), '</span>\n      <div class="stabs" role="tablist">\n        <button role="tab" data-act="stab" data-t="att" aria-selected="').concat(S.stab === "att", '">الحضور</button>\n        <button role="tab" data-act="stab" data-t="hw" aria-selected="').concat(S.stab === "hw", '">الواجب والدرجات</button>\n      </div>');
-    if (S.stab === "att") {
+    let h = '<div class="card shero">\n      <h2>'.concat(esc(s.title), '</h2>\n      <span class="gtime">').concat(fmtDate(s.date), '</span>\n      <span class="hint">').concat(esc(g.place), '</span>\n      <div class="stabs" role="tablist">\n        <button role="tab" data-act="stab" data-t="att" aria-selected="').concat(S.stab === "att", '">الحضور</button>\n        <button role="tab" data-act="stab" data-t="hw" aria-selected="').concat(S.stab === "hw", '">الواجب والدرجات</button>\n        <button role="tab" data-act="stab" data-t="notes" aria-selected="').concat(S.stab === "notes", '">ملاحظاتي').concat(hasLog(s) ? ' <span class="ndot" aria-label="فيه ملاحظات"></span>' : "", "</button>\n      </div>");
+    if (S.stab === "notes") {
+      h += "</div>" + notesTab(g, s);
+    } else if (S.stab === "att") {
       h += '<div class="counts"><div class="cnt p"><b>'.concat(ar(c.p), '</b><span>حاضر</span></div><div class="cnt l"><b>').concat(ar(c.l), '</b><span>متأخر</span></div><div class="cnt a"><b>').concat(ar(c.a), '</b><span>غائب</span></div><div class="cnt n"><b>').concat(ar(c.n), "</b><span>").concat(UNMARKED, "</span></div></div>\n      ").concat(c.m || c.guest ? '<p class="hint">'.concat(c.m ? "".concat(ar(c.m), " حضر تعويض في مجموعة تانية") : "").concat(c.m && c.guest ? " · " : "").concat(c.guest ? "".concat(ar(c.guest), " جاي تعويض من مجموعة تانية") : "", "</p>") : "", "\n      ").concat(g.members.length ? '<div class="row"><button class="btn" data-act="allPresent">علّم الباقي حاضر</button></div>' : "", "</div>");
       const roster = rosterFor(g, s);
       h += roster.length ? "".concat(searchBox(roster.length), '<ul class="list">').concat(roster.map((code, i) => {
@@ -1419,9 +1689,11 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     } else dock.hidden = true;
     $("view").innerHTML = html;
     applyFilter();
+    hydrateMedia();
   }
   function go(p) {
-    Object.assign(S, { form: null, q: "", guestPick: false, guestAll: false, mkOffer: null }, p);
+    if (rec) stopRec();
+    Object.assign(S, { lightbox: null, form: null, q: "", guestPick: false, guestAll: false, mkOffer: null }, p);
     render();
     window.scrollTo(0, 0);
   }
@@ -1483,6 +1755,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         break;
       case "stage":
         S.stage = t.dataset.k;
+        S.stageAuto = false;
         try {
           localStorage.setItem(KEY + "-stage", S.stage);
         } catch (e2) {
@@ -1498,7 +1771,34 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         break;
       case "stab":
         S.stab = t.dataset.t;
+        S.lightbox = null;
         render();
+        break;
+      case "recStart":
+        startRec();
+        break;
+      case "recStop":
+        stopRec();
+        break;
+      case "lightbox":
+        S.lightbox = t.dataset.ref;
+        render();
+        break;
+      case "lightboxClose":
+        S.lightbox = null;
+        render();
+        break;
+      case "logDel":
+        armed(t, () => {
+          const s = SES(g), it = s && s.log.items.find((x) => x.id === t.dataset.id);
+          if (!it) return;
+          s.log.items = s.log.items.filter((x) => x !== it);
+          dropMedia(it.ref);
+          touch();
+          W.session(g, s);
+          render();
+          toast("اتحذف");
+        });
         break;
       case "openFinance":
         go({ screen: "finance", month: thisMonth() });
@@ -1666,6 +1966,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       case "delSession":
         armed(t, () => {
           const s = SES(g);
+          s.log.items.forEach((x) => dropMedia(x.ref));
           g.sessions = g.sessions.filter((x) => x !== s);
           W.session(g, s, true);
           go({ screen: "group", tab: "sessions" });
@@ -1747,6 +2048,14 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       applyFilter();
       return;
     }
+    if (e.target.id === "log-stop" || e.target.id === "log-text") {
+      const g2 = G(), s = SES(g2);
+      if (!s) return;
+      s.log[e.target.id === "log-stop" ? "stop" : "text"] = e.target.value;
+      touch();
+      W.session(g2, s);
+      return;
+    }
     if (e.target.id === "gq") {
       const q = normAr(e.target.value);
       $("view").querySelectorAll("[data-gq]").forEach((el) => {
@@ -1778,6 +2087,12 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     var _a;
     const t = e.target, g = G(), s = SES(g);
     if (!s) return;
+    if (t.id === "log-img" || t.id === "log-aud") {
+      const files = [...t.files || []];
+      t.value = "";
+      if (files.length) addNoteBlobs(g.id, s.id, files, t.id === "log-img" ? "img" : "audio");
+      return;
+    }
     if (t.dataset.grade !== void 0) {
       const c = t.dataset.grade, n = toNum(t.value);
       if (n === null) {
