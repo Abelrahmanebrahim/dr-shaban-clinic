@@ -298,6 +298,8 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
 .mrow.guest .seg button:last-child{color:var(--bad)}
 @media (max-width:520px){.mrow .seg button{padding:7px 6px;font-size:13px}}
 
+.req{color:var(--bad);font-weight:600;font-size:12px}
+
 .toast{position:fixed;inset-inline:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));margin:auto;max-width:360px;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:10px;text-align:center;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}
 .toast.on{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -1069,7 +1071,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
   function groupForm(g) {
     var _a;
     const d = g ? g.days : [];
-    return '<form class="card" data-form="group">\n    <h3 style="font-family:var(--f-verse);font-size:22px">'.concat(g ? "تعديل بيانات المجموعة" : "مجموعة جديدة", '</h3>\n    <label class="field">مكان المجموعة<input type="text" name="place" id="f-place" required value="').concat(esc(g == null ? void 0 : g.place), '" placeholder="مثال: سنتر النور — قاعة ١"></label>\n    <div class="field">أيام المجموعة<div class="days">').concat(DAYS.map(([k, n]) => '<label class="day"><input type="checkbox" name="d" value="'.concat(k, '" ').concat(d.includes(k) ? "checked" : "", "><span>").concat(n, "</span></label>")).join(""), '</div></div>\n    <div class="two">\n      <label class="field">الصف<select name="note" id="f-note"><option value="">اختار الصف</option>').concat([...GRADES, ...(g == null ? void 0 : g.note) && !GRADES.includes(g.note) ? [g.note] : []].map((x) => "<option ".concat((g == null ? void 0 : g.note) === x ? "selected" : "", ">").concat(esc(x), "</option>")).join(""), '</select></label>\n      <label class="field">الساعة<input type="time" name="time" id="f-time" value="').concat(esc(g == null ? void 0 : g.time), '"></label>\n    </div>\n    <div class="feebox">\n      <label class="field">اشتراك الطالب في الشهر (').concat(esc(db.settings.cur), ')<input type="text" inputmode="decimal" name="fee" id="f-fee" value="').concat((_a = g == null ? void 0 : g.fee) != null ? _a : "", '" placeholder="مثال: 300" data-n="').concat(g ? g.members.length : 0, '"></label>\n      <p class="feecalc" id="f-feecalc">').concat(feeCalc(g == null ? void 0 : g.fee, g ? g.members.length : 0), '</p>\n    </div>\n    <div class="row"><button class="btn primary" type="submit">').concat(g ? "حفظ التعديلات" : "إنشاء المجموعة", "</button>").concat(g ? "" : '<button class="btn" type="button" data-act="cancel">إلغاء</button>', "</div>\n  </form>");
+    return '<form class="card" data-form="group">\n    <h3 style="font-family:var(--f-verse);font-size:22px">'.concat(g ? "تعديل بيانات المجموعة" : "مجموعة جديدة", '</h3>\n    <label class="field">مكان المجموعة<input type="text" name="place" id="f-place" required value="').concat(esc(g == null ? void 0 : g.place), '" placeholder="مثال: سنتر النور — قاعة ١"></label>\n    <div class="field">أيام المجموعة<div class="days">').concat(DAYS.map(([k, n]) => '<label class="day"><input type="checkbox" name="d" value="'.concat(k, '" ').concat(d.includes(k) ? "checked" : "", "><span>").concat(n, "</span></label>")).join(""), '</div></div>\n    <div class="two">\n      <label class="field">الصف <span class="req">(مطلوب)</span><select name="note" id="f-note" required><option value="" disabled ').concat((g == null ? void 0 : g.note) ? "" : "selected", ">اختار الصف</option>").concat([...GRADES, ...(g == null ? void 0 : g.note) && !GRADES.includes(g.note) ? [g.note] : []].map((x) => "<option ".concat((g == null ? void 0 : g.note) === x ? "selected" : "", ">").concat(esc(x), "</option>")).join(""), '</select></label>\n      <label class="field">الساعة<input type="time" name="time" id="f-time" value="').concat(esc(g == null ? void 0 : g.time), '"></label>\n    </div>\n    <div class="feebox">\n      <label class="field">اشتراك الطالب في الشهر (').concat(esc(db.settings.cur), ')<input type="text" inputmode="decimal" name="fee" id="f-fee" value="').concat((_a = g == null ? void 0 : g.fee) != null ? _a : "", '" placeholder="مثال: 300" data-n="').concat(g ? g.members.length : 0, '"></label>\n      <p class="feecalc" id="f-feecalc">').concat(feeCalc(g == null ? void 0 : g.fee, g ? g.members.length : 0), '</p>\n    </div>\n    <div class="row"><button class="btn primary" type="submit">').concat(g ? "حفظ التعديلات" : "إنشاء المجموعة", "</button>").concat(g ? "" : '<button class="btn" type="button" data-act="cancel">إلغاء</button>', "</div>\n  </form>");
   }
   function home() {
     let h = "";
@@ -1091,7 +1093,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
   }
   function groupScreen(g) {
     const tabs = [["sessions", "الحصص", g.sessions.length], ["students", "الطلاب", g.members.length], ["money", "الفلوس", null], ["edit", "الإعدادات", null]];
-    let h = '<div class="card"><div class="ghero"><h2>'.concat(esc(g.place), '</h2><span class="gtime">').concat(esc(schedText(g)), "</span>").concat(g.note ? '<span class="hint">'.concat(esc(g.note), "</span>") : "").concat(g.fee ? '<span class="expline">'.concat(expectedLine(g), "</span>") : "", '</div>\n    <div class="tabs" role="tablist">').concat(tabs.map(([k, l, c]) => '<button class="tab" role="tab" data-act="tab" data-tab="'.concat(k, '" aria-selected="').concat(S.tab === k, '">').concat(l).concat(c != null ? " <small>(".concat(ar(c), ")</small>") : "", "</button>")).join(""), "</div>");
+    let h = '<div class="card"><div class="ghero"><h2>'.concat(esc(g.place), '</h2><span class="gtime">').concat(esc(schedText(g)), "</span>").concat(g.note ? '<span class="hint">'.concat(esc(g.note), "</span>") : "").concat(g.fee ? '<span class="expline">'.concat(expectedLine(g), "</span>") : "", "</div>\n    ").concat(!g.note && S.tab !== "edit" ? '<div class="banner"><span>المجموعة دي مالهاش صف. حدده من الإعدادات.</span><button class="btn primary" data-act="tab" data-tab="edit">تحديد الصف</button></div>' : "", '\n    <div class="tabs" role="tablist">').concat(tabs.map(([k, l, c]) => '<button class="tab" role="tab" data-act="tab" data-tab="'.concat(k, '" aria-selected="').concat(S.tab === k, '">').concat(l).concat(c != null ? " <small>(".concat(ar(c), ")</small>") : "", "</button>")).join(""), "</div>");
     if (S.tab === "sessions") {
       if (!g.members.length) h += '<p class="hint">أضف طلاب المجموعة الأول من تبويب «الطلاب»، وبعدها ابدأ تسجّل الحصص.</p>';
       if (S.form === "session") {
@@ -1780,7 +1782,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     }
   });
   document.addEventListener("submit", (e) => {
-    var _a;
+    var _a, _b;
     e.preventDefault();
     const f = e.target, fd = new FormData(f), g = G();
     switch (f.dataset.form) {
@@ -1850,6 +1852,11 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         const place = (fd.get("place") || "").trim();
         if (!place) {
           toast("اكتب مكان المجموعة");
+          return;
+        }
+        if (!(fd.get("note") || "").trim()) {
+          toast("اختار صف المجموعة");
+          (_a = $("f-note")) == null ? void 0 : _a.focus();
           return;
         }
         const days = fd.getAll("d").map(Number), time = fd.get("time") || "", note = (fd.get("note") || "").trim();
@@ -1932,7 +1939,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         touch();
         W.group(g);
         render();
-        (_a = $("f-sname")) == null ? void 0 : _a.focus();
+        (_b = $("f-sname")) == null ? void 0 : _b.focus();
         toast("اتضاف ".concat(db.students[c].name, " (#").concat(c, ")"));
         break;
       }
