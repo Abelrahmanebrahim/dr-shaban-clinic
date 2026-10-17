@@ -300,6 +300,15 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
 
 .req{color:var(--bad);font-weight:600;font-size:12px}
 
+.stagetabs{display:flex;gap:6px;background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:5px}
+.stagetabs button{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 8px;font-family:var(--f-verse);font-size:19px;font-weight:700;color:var(--muted)}
+.stagetabs button small{font-family:var(--f-ui);font-size:12px;font-weight:600;background:var(--line);color:var(--ink);border-radius:999px;padding:0 8px;margin-inline-start:4px}
+.stagetabs button[aria-selected="true"]{background:var(--lapis);color:var(--on-strong)}
+.stagetabs button[aria-selected="true"] small{background:var(--on-strong);color:var(--lapis)}
+.gradesec{display:flex;flex-direction:column;gap:8px}
+.gradeh{font-family:var(--f-verse);font-size:20px;display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.gradeh small{font-family:var(--f-ui);font-size:12px;color:var(--muted);font-weight:500}
+
 .toast{position:fixed;inset-inline:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));margin:auto;max-width:360px;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:10px;text-align:center;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}
 .toast.on{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -1078,16 +1087,37 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     if (mode === "local" && localSample) h += '<div class="banner"><span>المجموعة الموجودة تجريبية علشان تشوف شكل الصفحة.</span><button class="btn" data-act="clearSample">احذفها وابدأ</button></div>';
     if (mode === "local" && inViewer === false) h += '<p class="hint">الصفحة مفتوحة كملف على الجهاز، فالبيانات محفوظة هنا بس. افتح رابط الصفحة على Claude علشان تتحفظ أونلاين.</p>';
     if (migrateFrom) h += '<div class="banner"><span>لقينا بيانات محفوظة على الجهاز ده ('.concat(ar(migrateFrom.groups.length), ' مجموعة). انقلها للحفظ الأونلاين علشان تلاقيها على أي جهاز.</span><button class="btn primary" data-act="migrate">نقل بياناتي</button></div>');
+    const stageOf = (g) => GRADES.indexOf(g.note) < 0 ? "none" : GRADES.indexOf(g.note) < 3 ? "prep" : "sec";
+    const by = { prep: [], sec: [], none: [] };
+    db.groups.forEach((g) => by[stageOf(g)].push(g));
+    if (!S.stage || S.stage === "none" && !by.none.length) {
+      let saved = null;
+      try {
+        saved = localStorage.getItem(KEY + "-stage");
+      } catch (e) {
+      }
+      S.stage = saved && (saved !== "none" || by.none.length) ? saved : by.prep.length || !by.sec.length ? "prep" : "sec";
+    }
+    const stages = [["prep", "الإعدادي"], ["sec", "الثانوي"], ...by.none.length ? [["none", "بدون صف"]] : []];
+    h += '<div class="sechead"><h2>مجموعاتي</h2>'.concat(S.form === "group" ? "" : '<button class="btn primary" data-act="newGroup">+ مجموعة جديدة</button>', "</div>");
+    if (S.form === "group") h += groupForm(null);
+    if (!db.groups.length && S.form !== "group") h += '<div class="card"><p class="empty">لسه مفيش مجموعات. اضغط «+ مجموعة جديدة» واكتب مكانها وأيامها والساعة.</p></div>';
+    if (db.groups.length) {
+      h += '<div class="stagetabs" role="tablist">'.concat(stages.map(([k, l]) => '<button role="tab" data-act="stage" data-k="'.concat(k, '" aria-selected="').concat(S.stage === k, '">').concat(l, " <small>").concat(ar(by[k].length), "</small></button>")).join(""), "</div>");
+      const td = (/* @__PURE__ */ new Date()).getDay(), list = by[S.stage] || [];
+      const card = (g) => '<button class="gcard" data-act="openGroup" data-id="'.concat(g.id, '">\n      <span class="gplace">').concat(esc(g.place), '</span>\n      <span class="gtime">').concat(esc(schedText(g)), '</span>\n      <span class="gmeta">').concat(ar(g.members.length), " طالب · ").concat(ar(g.sessions.length), " حصة ").concat(g.days.includes(td) ? '<span class="badge">عندها حصة النهارده</span>' : "", "</span>\n      ").concat(g.fee ? '<span class="gfee">'.concat(money(g.fee), " للطالب · المتوقع ").concat(money(g.fee * g.members.length), " في الشهر</span>") : "", "\n    </button>");
+      if (!list.length) h += '<div class="card"><p class="empty">مفيش مجموعات '.concat(S.stage === "sec" ? "ثانوي" : "إعدادي", " لسه.</p></div>");
+      else if (S.stage === "none") h += '<p class="hint">المجموعات دي مالهاش صف. افتح أي واحدة وحدد صفها.</p><div class="glist">'.concat(list.map(card).join(""), "</div>");
+      else GRADES.filter((x) => list.some((g) => g.note === x)).forEach((x) => {
+        const gs = list.filter((g) => g.note === x);
+        h += '<div class="gradesec"><h3 class="gradeh">'.concat(esc(x), " <small>").concat(ar(gs.length), " ").concat(gs.length === 1 ? "مجموعة" : "مجموعات", '</small></h3><div class="glist">').concat(gs.map(card).join(""), "</div></div>");
+      });
+    }
     if (db.groups.length) {
       const t = allMoney(thisMonth());
       h += '<button class="fincard" data-act="openFinance"><span class="ft">لوحة الماليات · '.concat(monthLabel(thisMonth()), '</span>\n      <span class="fnums"><span><small>المحصّل</small><b>').concat(money(t.collected), '</b></span><span><small>المتبقي</small><b class="').concat(t.left ? "warnc" : "", '">').concat(money(t.left), "</b></span><span><small>لم يدفع</small><b>").concat(ar(t.unpaid), ' طالب</b></span></span>\n      <span class="fgo">افتح اللوحة ←</span></button>');
     }
     h += '<form class="card" data-form="findId">\n      <div class="findrow"><label class="field">تقرير طالب بالـ ID<input type="text" name="code" id="f-find" inputmode="numeric" dir="ltr" placeholder="مثال: 1001"></label>\n      <button class="btn primary" type="submit">عرض التقرير</button></div>\n      <p class="hint">التقرير بيجمع حضور الطالب وواجباته ودرجاته في كل الحصص اللي فاتت، في كل المجموعات اللي هو فيها.</p>\n    </form>';
-    h += '<div class="sechead"><h2>مجموعاتي</h2>'.concat(S.form === "group" ? "" : '<button class="btn primary" data-act="newGroup">+ مجموعة جديدة</button>', "</div>");
-    if (S.form === "group") h += groupForm(null);
-    if (!db.groups.length && S.form !== "group") h += '<div class="card"><p class="empty">لسه مفيش مجموعات. اضغط «+ مجموعة جديدة» واكتب مكانها وأيامها والساعة.</p></div>';
-    const td = (/* @__PURE__ */ new Date()).getDay();
-    h += '<div class="glist">'.concat(db.groups.map((g) => '<button class="gcard" data-act="openGroup" data-id="'.concat(g.id, '">\n      <span class="gplace">').concat(esc(g.place), '</span>\n      <span class="gtime">').concat(esc(schedText(g)), '</span>\n      <span class="gmeta">').concat(g.note ? esc(g.note) + " · " : "").concat(ar(g.members.length), " طالب · ").concat(ar(g.sessions.length), " حصة ").concat(g.days.includes(td) ? '<span class="badge">عندها حصة النهارده</span>' : "", "</span>\n      ").concat(g.fee ? '<span class="gfee">'.concat(money(g.fee), " للطالب · المتوقع ").concat(money(g.fee * g.members.length), " في الشهر</span>") : "", "\n    </button>")).join(""), "</div>");
     h += '<details class="card"><summary>نسخة احتياطية</summary>\n    <div style="display:flex;flex-direction:column;gap:10px">\n      <p class="hint">'.concat(mode === "cloud" ? "بياناتك محفوظة أونلاين، والنسخة الاحتياطية زيادة أمان." : "البيانات محفوظة في المتصفح ده بس.", ' انسخ النسخة وابعتها لنفسك على واتساب، ولما تحب ترجّعها الصقها هنا.</p>\n      <div class="row"><button class="btn gold" data-act="backup">نسخ النسخة الاحتياطية</button></div>\n      <label class="field">استرجاع نسخة<textarea id="restoreBox" rows="3" placeholder="الصق النسخة هنا"></textarea></label>\n      <div class="row"><button class="btn" data-act="restore">استرجاع</button></div>\n    </div></details>');
     return h;
   }
@@ -1450,6 +1480,14 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         break;
       case "openGroup":
         go({ screen: "group", gid: t.dataset.id, tab: "sessions" });
+        break;
+      case "stage":
+        S.stage = t.dataset.k;
+        try {
+          localStorage.setItem(KEY + "-stage", S.stage);
+        } catch (e2) {
+        }
+        render();
         break;
       case "tab":
         S.tab = t.dataset.tab;
@@ -1872,6 +1910,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
           render();
           toast("اتحفظت التعديلات");
         } else {
+          S.stage = GRADES.indexOf(note) < 3 ? "prep" : "sec";
           const ng = normGroup({ id: uid(), place, days, time, note, fee, members: [], sessions: [], createdAt: Date.now() });
           db.groups.push(ng);
           touch();
