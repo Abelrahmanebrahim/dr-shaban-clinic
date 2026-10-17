@@ -271,6 +271,12 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
 .boothelp{opacity:0;animation:bootshow .3s ease 6s forwards}
 @keyframes bootshow{to{opacity:1}}
 
+.sbox{position:sticky;top:calc(env(safe-area-inset-top,0px) + 44px);z-index:4;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--lapis);border-radius:10px;padding:4px 12px 4px 4px}
+.sbox input{flex:1;min-width:0;border:0;background:transparent;padding:8px 10px;font-size:16px;color:var(--ink);outline:none}
+.sbox:focus-within{box-shadow:0 0 0 3px var(--lapis-soft)}
+.qcount{flex:none;font-size:12px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.prow .phead .num{min-width:1.4em}
+
 .toast{position:fixed;inset-inline:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));margin:auto;max-width:360px;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:10px;text-align:center;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:20}
 .toast.on{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -692,7 +698,27 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     var _a;
     return ((_a = db.students[c]) == null ? void 0 : _a.name) || "طالب #" + c;
   };
-  const S = { screen: "home", gid: null, sesId: null, code: null, from: "home", tab: "sessions", stab: "att", form: null, month: null, payFor: null };
+  const normAr = (s) => String(s || "").toLowerCase().replace(/[ً-ْٰـ]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/ؤ/g, "و").replace(/ئ/g, "ي").replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\s+/g, " ").trim();
+  const sortedMembers = (g) => [...g.members].sort((a, b) => normAr(NAME(a)).localeCompare(normAr(NAME(b)), "ar") || a.localeCompare(b));
+  const qAttr = (c) => ' data-q="'.concat(esc(normAr(NAME(c) + " " + c)), '"');
+  function searchBox(n) {
+    if (n < 2) return "";
+    return '<div class="sbox"><input type="search" id="q" value="'.concat(esc(S.q), '" placeholder="ابحث باسم الطالب أو الـ ID" autocomplete="off" aria-label="ابحث عن طالب">\n    <span class="qcount" id="qcount"></span></div><p class="empty" id="qempty" hidden>مفيش طالب بالاسم ده.</p>');
+  }
+  function applyFilter() {
+    const box = $("q");
+    if (!box) return;
+    const q = normAr(box.value), items = $("view").querySelectorAll("[data-q]");
+    let shown = 0;
+    items.forEach((el) => {
+      const ok = !q || el.dataset.q.split(" ").some((w) => w.startsWith(q)) || el.dataset.q.includes(q);
+      el.hidden = !ok;
+      if (ok) shown++;
+    });
+    $("qempty").hidden = shown > 0;
+    $("qcount").textContent = q ? "".concat(ar(shown), " من ").concat(ar(items.length)) : "".concat(ar(items.length), " طالب");
+  }
+  const S = { q: "", screen: "home", gid: null, sesId: null, code: null, from: "home", tab: "sessions", stab: "att", form: null, month: null, payFor: null };
   const G = () => db.groups.find((g) => g.id === S.gid);
   const SES = (g) => g && g.sessions.find((s) => s.id === S.sesId);
   const sorted = (g) => [...g.sessions].sort((a, b) => b.date.localeCompare(a.date));
@@ -1004,10 +1030,10 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     }
     if (S.tab === "students") {
       h += '<form class="addform" data-form="student">\n        <div class="addrow">\n          <label class="field">ID الطالب<input type="text" name="code" id="f-scode" inputmode="numeric" dir="ltr" required value="'.concat(nextCode(), '"></label>\n          <label class="field">اسم الطالب<input type="text" name="name" id="f-sname"></label>\n          <label class="field wide">واتساب ولي الأمر (اختياري)<input type="tel" name="phone" id="f-sphone" dir="ltr" placeholder="2010xxxxxxxx"></label>\n        </div>\n        <p class="found" id="f-found" hidden></p>\n        <div class="row"><button class="btn primary" type="submit">إضافة الطالب</button></div>\n        <p class="hint">الـ ID بيتكتب لوحده برقم جديد، وتقدر تغيّره (أرقام وحروف إنجليزي بس). لو كتبت ID لطالب مسجّل قبل كده، هيتضاف بنفس سجله.</p>\n      </form>\n      <details><summary>إضافة كذا طالب مرة واحدة</summary>\n        <form data-form="bulk" style="display:flex;flex-direction:column;gap:8px">\n          <textarea name="names" id="f-bulk" rows="5" placeholder="اسم كل طالب في سطر — كل واحد هياخد ID لوحده"></textarea>\n          <div class="row"><button class="btn primary" type="submit">إضافة الكل</button></div>\n        </form></details>');
-      h += g.members.length ? '<p class="hint">اضغط على أي طالب علشان تشوف تقريره وتطلّعه PDF.</p><ul class="list">'.concat(g.members.map((c, i) => {
+      h += g.members.length ? '<p class="hint">مترتبين أبجديًا. اضغط على أي طالب علشان تشوف تقريره وتطلّعه PDF.</p>'.concat(searchBox(g.members.length), '<ul class="list">').concat(sortedMembers(g).map((c, i) => {
         const st = history(c, g);
         const cls = st.pct == null ? "none" : st.pct >= 75 ? "ok" : "bad";
-        return '<li><button class="strow" data-act="openStudent" data-code="'.concat(esc(c), '"><span class="num">').concat(ar(i + 1), '</span><span class="nm">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), '</span><span class="pct ').concat(cls, '">').concat(st.pct == null ? "لم يُحضَّر" : ar(st.pct) + "٪", "</span></button></li>");
+        return "<li".concat(qAttr(c), '><button class="strow" data-act="openStudent" data-code="').concat(esc(c), '"><span class="num">').concat(ar(i + 1), '</span><span class="nm">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), '</span><span class="pct ').concat(cls, '">').concat(st.pct == null ? "لم يُحضَّر" : ar(st.pct) + "٪", "</span></button></li>");
       }).join(""), "</ul>") : '<p class="empty">لسه مفيش طلاب في المجموعة.</p>';
     }
     if (S.tab === "money") h += moneyTab(g);
@@ -1026,10 +1052,11 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     if (g.fee) h += '<p class="expline">'.concat(expectedLine(g), "</p>");
     h += '<div class="kpis"><div class="kpi"><span>المتوقع</span><b>'.concat(money(gm.due), '</b></div><div class="kpi ok"><span>المحصّل</span><b>').concat(money(gm.collected), '</b></div><div class="kpi bad"><span>المتبقي</span><b>').concat(money(gm.left), "</b></div></div>");
     if (!g.members.length) return h + '<p class="empty">مفيش طلاب في المجموعة.</p>';
-    h += '<ul class="list">'.concat(g.members.map((c) => {
+    h += searchBox(g.members.length);
+    h += '<ul class="list">'.concat(sortedMembers(g).map((c, i) => {
       var _a;
       const s = payStatus(g, c, m), ps = paysOf(g.id, c, m), ph = (_a = db.students[c]) == null ? void 0 : _a.phone;
-      let r = '<li class="prow '.concat(s.st, '"><div class="phead"><span class="nm" style="flex:none">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), '</span><span class="pstat ').concat(s.st, '">').concat(PAY_LABEL[s.st], '</span>\n      <span class="pamt">').concat(money(s.paid)).concat(s.fee ? " / ".concat(money(s.fee)) : "", "</span></div>");
+      let r = '<li class="prow '.concat(s.st, '"').concat(qAttr(c), '><div class="phead"><span class="num">').concat(ar(i + 1), '</span><span class="nm" style="flex:none">').concat(esc(NAME(c)), '</span><span class="idtag">#').concat(esc(c), '</span><span class="pstat ').concat(s.st, '">').concat(PAY_LABEL[s.st], '</span>\n      <span class="pamt">').concat(money(s.paid)).concat(s.fee ? " / ".concat(money(s.fee)) : "", "</span></div>");
       if (ps.length) r += '<div class="plist">'.concat(ps.map((p) => '<span class="pchip">'.concat(money(p.amount), " · ").concat(fmtShort(p.date)).concat(p.note ? " · " + esc(p.note) : "", '\n      <a href="').concat(waLink(receiptText(g, p), ph), '" target="_blank" rel="noopener">إيصال</a><button data-act="payDel" data-id="').concat(p.id, '" aria-label="حذف الدفعة">حذف</button></span>')).join(""), "</div>");
       if (S.payFor === c) {
         r += '<form class="payform" data-form="pay" data-code="'.concat(esc(c), '"><div class="two">\n        <label class="field">المبلغ (').concat(esc(db.settings.cur), ')<input type="text" inputmode="decimal" name="amount" id="p-amt" value="').concat(s.left || "", '" required></label>\n        <label class="field">تاريخ الدفع<input type="date" name="date" id="p-date" value="').concat(today(), '" required></label></div>\n        <label class="field">ملاحظة (اختياري)<input type="text" name="note" id="p-note" placeholder="مثال: كاش / تحويل"></label>\n        <div class="row"><button class="btn primary" type="submit">تسجيل الدفعة</button><button class="btn" type="button" data-act="payCancel">إلغاء</button></div></form>');
@@ -1081,15 +1108,15 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     let h = '<div class="card shero">\n      <h2>'.concat(esc(s.title), '</h2>\n      <span class="gtime">').concat(fmtDate(s.date), '</span>\n      <span class="hint">').concat(esc(g.place), '</span>\n      <div class="stabs" role="tablist">\n        <button role="tab" data-act="stab" data-t="att" aria-selected="').concat(S.stab === "att", '">الحضور</button>\n        <button role="tab" data-act="stab" data-t="hw" aria-selected="').concat(S.stab === "hw", '">الواجب والدرجات</button>\n      </div>');
     if (S.stab === "att") {
       h += '<div class="counts"><div class="cnt p"><b>'.concat(ar(c.p), '</b><span>حاضر</span></div><div class="cnt l"><b>').concat(ar(c.l), '</b><span>متأخر</span></div><div class="cnt a"><b>').concat(ar(c.a), '</b><span>غائب</span></div><div class="cnt n"><b>').concat(ar(c.n), "</b><span>لم يُحضَّر</span></div></div>\n      ").concat(g.members.length ? '<div class="row"><button class="btn" data-act="allPresent">علّم الباقي حاضر</button></div>' : "", "</div>");
-      h += g.members.length ? '<ul class="list">'.concat(g.members.map((code, i) => {
+      h += g.members.length ? "".concat(searchBox(g.members.length), '<ul class="list">').concat(sortedMembers(g).map((code, i) => {
         const v = s.marks[code] || "";
-        return '<li class="mrow '.concat(v, '"><span class="num">').concat(ar(i + 1), '</span><span class="mname"><span class="nm" style="flex:none">').concat(esc(NAME(code)), '</span><span class="idtag">#').concat(esc(code), '</span></span>\n        <div class="seg">').concat(["p", "l", "a"].map((k) => '<button data-act="mark" data-st="'.concat(k, '" data-code="').concat(esc(code), '" aria-pressed="').concat(v === k, '">').concat(ST_LABEL[k], "</button>")).join(""), "</div></li>");
+        return '<li class="mrow '.concat(v, '"').concat(qAttr(code), '><span class="num">').concat(ar(i + 1), '</span><span class="mname"><span class="nm" style="flex:none">').concat(esc(NAME(code)), '</span><span class="idtag">#').concat(esc(code), '</span></span>\n        <div class="seg">').concat(["p", "l", "a"].map((k) => '<button data-act="mark" data-st="'.concat(k, '" data-code="').concat(esc(code), '" aria-pressed="').concat(v === k, '">').concat(ST_LABEL[k], "</button>")).join(""), "</div></li>");
       }).join(""), "</ul>") : '<div class="card"><p class="empty">مفيش طلاب في المجموعة. ارجع للمجموعة وأضفهم من تبويب «الطلاب».</p></div>';
     } else {
       h += '<div class="stats3"><div class="stat"><b>'.concat(ar(st.hwY), "/").concat(ar(st.hwT), '</b><span>حلّوا الواجب</span></div>\n        <div class="stat"><b>').concat(st.avg == null ? "—" : ar(st.avg), "</b><span>متوسط الاختبار").concat(s.max ? " من " + ar(s.max) : "", '</span></div>\n        <div class="stat"><b>').concat(ar(st.gCount), '</b><span>اتسجّلت درجته</span></div></div>\n      <div class="row"><label class="gr">درجة الاختبار من <input type="text" inputmode="decimal" class="maxin" id="s-max" value="').concat((_a = s.max) != null ? _a : "", '"></label><span class="mini">سيبها فاضية لو مفيش اختبار في الحصة دي</span></div>\n      <p class="hint">الدرجة والملاحظة بيتحفظوا أول ما تخرج من الخانة.</p></div>');
-      h += g.members.length ? '<ul class="list">'.concat(g.members.map((code, i) => {
+      h += g.members.length ? "".concat(searchBox(g.members.length), '<ul class="list">').concat(sortedMembers(g).map((code, i) => {
         const hv = s.hw[code] || "", gv = s.grades[code], absent = s.marks[code] === "a";
-        return '<li class="hrow"><div class="hhead"><span class="num">'.concat(ar(i + 1), '</span><span class="nm" style="flex:none">').concat(esc(NAME(code)), '</span><span class="idtag">#').concat(esc(code), "</span>").concat(absent ? '<span class="pill a">غائب</span>' : "", '</div>\n        <div class="hctrls"><div class="seg"><button data-act="hw" data-v="y" data-code="').concat(esc(code), '" aria-pressed="').concat(hv === "y", '">حل الواجب</button><button data-act="hw" data-v="n" data-code="').concat(esc(code), '" aria-pressed="').concat(hv === "n", '">لم يحل</button></div>\n        ').concat(s.max ? '<label class="gr">الدرجة <input type="text" inputmode="decimal" id="g-'.concat(esc(code), '" data-grade="').concat(esc(code), '" value="').concat(typeof gv === "number" ? gv : "", '" aria-label="درجة ').concat(esc(NAME(code)), '"> / ').concat(ar(s.max), "</label>") : "", '</div>\n        <input type="text" class="notein" id="n-').concat(esc(code), '" data-note="').concat(esc(code), '" value="').concat(esc(s.notes[code] || ""), '" placeholder="ملاحظة على الطالب (اختياري) — هتظهر في تقريره"></li>');
+        return '<li class="hrow"'.concat(qAttr(code), '><div class="hhead"><span class="num">').concat(ar(i + 1), '</span><span class="nm" style="flex:none">').concat(esc(NAME(code)), '</span><span class="idtag">#').concat(esc(code), "</span>").concat(absent ? '<span class="pill a">غائب</span>' : "", '</div>\n        <div class="hctrls"><div class="seg"><button data-act="hw" data-v="y" data-code="').concat(esc(code), '" aria-pressed="').concat(hv === "y", '">حل الواجب</button><button data-act="hw" data-v="n" data-code="').concat(esc(code), '" aria-pressed="').concat(hv === "n", '">لم يحل</button></div>\n        ').concat(s.max ? '<label class="gr">الدرجة <input type="text" inputmode="decimal" id="g-'.concat(esc(code), '" data-grade="').concat(esc(code), '" value="').concat(typeof gv === "number" ? gv : "", '" aria-label="درجة ').concat(esc(NAME(code)), '"> / ').concat(ar(s.max), "</label>") : "", '</div>\n        <input type="text" class="notein" id="n-').concat(esc(code), '" data-note="').concat(esc(code), '" value="').concat(esc(s.notes[code] || ""), '" placeholder="ملاحظة على الطالب (اختياري) — هتظهر في تقريره"></li>');
       }).join(""), "</ul>") : '<div class="card"><p class="empty">مفيش طلاب في المجموعة.</p></div>';
     }
     h += '<details class="card"><summary>تعديل أو حذف الحصة</summary>\n      <form data-form="editSession" style="display:flex;flex-direction:column;gap:10px">\n        <div class="two"><label class="field">عنوان الحصة<input type="text" name="title" id="e-title" required value="'.concat(esc(s.title), '"></label>\n        <label class="field">التاريخ<input type="date" name="date" id="e-date" required value="').concat(s.date, '"></label></div>\n        <div class="row"><button class="btn primary" type="submit">حفظ</button><button class="btn danger" type="button" data-act="delSession">حذف الحصة</button></div>\n      </form></details>');
@@ -1102,7 +1129,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     return '<div class="repacts">\n      '.concat(shareFiles ? '<button class="btn wa" data-act="pdfShare">مشاركة ملف PDF</button>' : "", '\n      <button class="btn primary" data-act="pdfSave">تحميل ملف PDF</button>\n      <a class="btn wa-line" href="').concat(waLink(cur.text, phone), '" target="_blank" rel="noopener">').concat(waLabel, '</a>\n      <button class="btn gold" data-act="copyRep">نسخ النص</button>\n    </div>\n    <p class="hint">').concat(shareFiles ? "«مشاركة ملف PDF» بيفتح قائمة المشاركة، اختار منها واتساب وابعته لولي الأمر." : "نزّل ملف الـ PDF وابعته كمرفق في محادثة واتساب.", "</p>");
   }
   function sessionReport(g, s) {
-    const marked = Object.keys(s.marks), st = sesStats(s);
+    const marked = Object.keys(s.marks).sort((a, b) => normAr(NAME(a)).localeCompare(normAr(NAME(b)), "ar")), st = sesStats(s);
     const pres = marked.filter((c) => s.marks[c] === "p" || s.marks[c] === "l"), abs = marked.filter((c) => s.marks[c] === "a"), lateN = marked.filter((c) => s.marks[c] === "l").length;
     const lateTag = (c) => s.marks[c] === "l" ? ' <span class="pill l">متأخر</span>' : "";
     const html = '<div class="rep">'.concat(repHead("تقرير حصة"), '\n    <dl class="kv"><dt>عنوان الحصة</dt><dd>').concat(esc(s.title), "</dd><dt>التاريخ</dt><dd>").concat(fmtDate(s.date), "</dd><dt>المجموعة</dt><dd>").concat(esc(g.place), " · ").concat(esc(schedText(g)), "</dd><dt>الحضور</dt><dd>").concat(ar(pres.length), " من ").concat(ar(g.members.length), " طالب").concat(lateN ? " (منهم ".concat(ar(lateN), " متأخر)") : "", "</dd>\n    ").concat(st.hwT ? "<dt>الواجب</dt><dd>حلّه ".concat(ar(st.hwY), " من ").concat(ar(st.hwT), " طالب</dd>") : "").concat(st.avg != null && s.max ? "<dt>متوسط الاختبار</dt><dd>".concat(ar(st.avg), " من ").concat(ar(s.max), "</dd>") : "", '</dl>\n    <div class="rsec"><div class="rl p">الطلاب الحاضرون (').concat(ar(pres.length), ")</div>").concat(pres.length ? '<ol class="rlist">'.concat(pres.map((c) => "<li>".concat(esc(NAME(c))).concat(lateTag(c), "</li>")).join(""), "</ol>") : '<p class="hint">لم يُسجَّل حضور.</p>', "</div>\n    ").concat(abs.length ? '<div class="rsec"><div class="rl a">الغائبون ('.concat(ar(abs.length), ')</div><ol class="rlist">').concat(abs.map((c) => "<li>".concat(esc(NAME(c)), "</li>")).join(""), "</ol></div>") : "", "\n    ").concat(repFoot(), "</div>");
@@ -1219,9 +1246,10 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
       dock.innerHTML = '<div><button class="btn primary" data-act="sreport">تقرير الحصة (PDF)</button></div>';
     } else dock.hidden = true;
     $("view").innerHTML = html;
+    applyFilter();
   }
   function go(p) {
-    Object.assign(S, { form: null }, p);
+    Object.assign(S, { form: null, q: "" }, p);
     render();
     window.scrollTo(0, 0);
   }
@@ -1265,6 +1293,7 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
         S.tab = t.dataset.tab;
         S.form = null;
         S.payFor = null;
+        S.q = "";
         render();
         break;
       case "stab":
@@ -1438,6 +1467,11 @@ select{font:inherit;background:var(--sunk);border:1px solid var(--line);border-r
     }
   });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "q") {
+      S.q = e.target.value;
+      applyFilter();
+      return;
+    }
     if (e.target.id === "f-fee") {
       const n = toNum(e.target.value);
       $("f-feecalc").innerHTML = feeCalc(n, Number(e.target.dataset.n) || 0);
